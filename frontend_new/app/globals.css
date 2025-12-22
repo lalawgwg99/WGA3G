@@ -3,84 +3,107 @@
 @tailwind utilities;
 
 :root {
-    /* Labubu Inspired Palette */
-    --color-labubu-fur: #8B5E3C;
-    /* 經典咖啡毛色 */
-    --color-labubu-cream: #FAF3E0;
-    /* 奶油底色 */
-    --color-labubu-pink: #E989A0;
-    /* 俏皮粉色 */
-    --color-labubu-olive: #6B8E23;
-    /* 橄欖綠 */
-    --color-labubu-teeth: #FFFFFF;
-    /* 牙齒白 */
-    --color-labubu-bg: #FDFBF7;
-    /* 溫潤背景色 */
+    /* iOS Style Colors */
+    --ios-blue: #007AFF;
+    --ios-gray: #8E8E93;
+    --ios-light-gray: #F2F2F7;
+    --ios-bg: #FFFFFF;
+    --ios-separator: #C6C6C8;
+    --ios-text: #000000;
+    --ios-secondary-text: #3C3C43;
 
-    --background: var(--color-labubu-bg);
-    --foreground: #4A3728;
-    /* 深褐文字 */
+    --background: var(--ios-bg);
+    --foreground: var(--ios-text);
 }
 
 body {
-    background: var(--background);
+    background: var(--ios-light-gray);
     color: var(--foreground);
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
     -webkit-font-smoothing: antialiased;
 }
 
-/* Labubu Style Elements */
-.labubu-card {
-    background: var(--color-labubu-cream);
-    border: 3px solid var(--color-labubu-fur);
-    border-radius: 24px;
-    box-shadow: 0 8px 0px var(--color-labubu-fur);
-    transition: all 0.2s ease;
-}
-
-.labubu-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 0px var(--color-labubu-fur);
-}
-
-.labubu-btn-primary {
-    background: var(--color-labubu-pink);
-    color: white;
-    border: 2px solid var(--color-labubu-fur);
-    border-radius: 16px;
-    box-shadow: 0 4px 0px var(--color-labubu-fur);
-    font-weight: bold;
-    transition: all 0.1s ease;
-}
-
-.labubu-btn-primary:active {
-    transform: translateY(2px);
-    box-shadow: 0 2px 0px var(--color-labubu-fur);
-}
-
-.labubu-btn-secondary {
-    background: var(--color-labubu-olive);
-    color: white;
-    border: 2px solid var(--color-labubu-fur);
-    border-radius: 16px;
-    box-shadow: 0 4px 0px var(--color-labubu-fur);
-    font-weight: bold;
-}
-
-.labubu-input {
-    background: white;
-    border: 2px solid var(--color-labubu-fur);
+/* iOS Style Card */
+.ios-card {
+    background: var(--ios-bg);
     border-radius: 12px;
-    padding: 8px 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+/* iOS Button Primary */
+.ios-btn-primary {
+    background: var(--ios-blue);
+    color: white;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: opacity 0.2s;
+    border: none;
+}
+
+.ios-btn-primary:active {
+    opacity: 0.7;
+}
+
+.ios-btn-primary:disabled {
+    opacity: 0.4;
+}
+
+/* iOS Button Secondary */
+.ios-btn-secondary {
+    background: transparent;
+    color: var(--ios-blue);
+    border-radius: 10px;
+    font-weight: 600;
+    transition: background 0.2s;
+    border: none;
+}
+
+.ios-btn-secondary:active {
+    background: rgba(0, 122, 255, 0.1);
+}
+
+/* iOS Input */
+.ios-input {
+    background: var(--ios-light-gray);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 14px;
     color: var(--foreground);
+    font-size: 16px;
 }
 
-.labubu-header {
-    background: var(--color-labubu-fur);
-    color: var(--color-labubu-cream);
-    border-bottom: 4px solid var(--color-labubu-pink);
+.ios-input:focus {
+    outline: 2px solid var(--ios-blue);
+    outline-offset: -2px;
 }
 
-.text-fur {
-    color: var(--color-labubu-fur);
+/* iOS List Item */
+.ios-list-item {
+    background: white;
+    border-bottom: 0.5px solid var(--ios-separator);
+    padding: 12px 16px;
+}
+
+.ios-list-item:last-child {
+    border-bottom: none;
+}
+
+/* iOS Navigation Bar */
+.ios-navbar {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 0.5px solid var(--ios-separator);
+}
+
+/* Loading Spinner */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.ios-spinner {
+    animation: spin 1s linear infinite;
 }

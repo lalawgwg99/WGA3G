@@ -147,58 +147,59 @@ export default function HomePage() {
     };
 
     return (
-        <div className="min-h-screen pb-8">
-            {/* Labubu Header */}
-            <div className="labubu-header py-6 px-3 shadow-xl text-center relative overflow-hidden">
-                <div className="absolute top-1 left-1 rotate-[-15deg] text-2xl opacity-30">🦷</div>
-                <div className="absolute top-1 right-1 rotate-[15deg] text-2xl opacity-30">🦴</div>
-                <div className="max-w-lg mx-auto relative z-10">
-                    <h1 className="text-2xl sm:text-3xl font-black mb-1 tracking-wide">OLA2 × LABUBU</h1>
-                    <p className="text-labubu-cream opacity-90 font-bold text-xs sm:text-sm">🦷 頑皮幫手：自動識別訂單 🦷</p>
-                </div>
-                <div className="absolute bottom-0 left-0 w-full h-1 bg-labubu-pink"></div>
+        <div className="min-h-screen bg-[#F2F2F7]">
+            {/* iOS Navigation Bar */}
+            <div className="ios-navbar sticky top-0 z-50 px-4 py-3">
+                <h1 className="text-center text-[17px] font-semibold">訂單識別</h1>
             </div>
 
-            <div className="max-w-lg mx-auto px-3 py-4">
+            <div className="max-w-lg mx-auto px-4 py-4 space-y-3">
                 {/* Upload Section */}
                 {!selectedImage ? (
-                    <div
-                        className="labubu-card p-6 sm:p-8 cursor-pointer text-center group"
-                        onClick={() => fileInputRef.current?.click()}
-                        onDrop={handleDrop}
-                        onDragOver={handleDragOver}
-                    >
-                        <div className="text-5xl sm:text-6xl mb-4 group-hover:scale-110 transition-transform">📸</div>
-                        <p className="text-lg sm:text-xl font-black text-fur mb-1">上傳訂單圖片</p>
-                        <p className="text-fur opacity-60 font-bold text-sm">點擊或拖放來開始 🐾</p>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageSelect}
-                            className="hidden"
-                        />
+                    <div className="ios-card p-8">
+                        <div
+                            className="cursor-pointer text-center"
+                            onClick={() => fileInputRef.current?.click()}
+                            onDrop={handleDrop}
+                            onDragOver={handleDragOver}
+                        >
+                            <div className="text-6xl mb-3">📸</div>
+                            <p className="text-[17px] font-semibold text-[#000] mb-1">上傳訂單圖片</p>
+                            <p className="text-[15px] text-[#8E8E93]">拍照或點擊選擇圖片</p>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageSelect}
+                                className="hidden"
+                            />
+                        </div>
                     </div>
                 ) : (
                     /* Preview Section */
-                    <div className="labubu-card p-4 mb-6">
-                        <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-4 border-4 border-white shadow-inner bg-white">
+                    <div className="ios-card p-4">
+                        <div className="relative aspect-[3/4] rounded-lg overflow-hidden mb-3 bg-[#F2F2F7]">
                             <img src={previewUrl} alt="訂單預覽" className="w-full h-full object-contain" />
                         </div>
 
-                        <div className="flex gap-2 sm:gap-3">
+                        <div className="flex gap-2">
                             <button
                                 onClick={resetImage}
-                                className="flex-1 py-3 px-2 sm:px-4 bg-white text-fur border-2 border-fur rounded-2xl font-black hover:bg-gray-100 transition-all shadow-[0_4px_0px_#8B5E3C] active:translate-y-1 active:shadow-none text-sm sm:text-base"
+                                className="flex-1 ios-btn-secondary py-3 text-[17px]"
                             >
-                                🔄 重新
+                                重新選擇
                             </button>
                             <button
                                 onClick={analyzeImage}
                                 disabled={isAnalyzing}
-                                className="flex-[2] labubu-btn-primary py-3 px-2 sm:px-4 disabled:opacity-50 text-sm sm:text-base"
+                                className="flex-[2] ios-btn-primary py-3 text-[17px]"
                             >
-                                {isAnalyzing ? '⏳ 識別中...' : '🔍 開始識別'}
+                                {isAnalyzing ? (
+                                    <span className="flex items-center justify-center gap-2">
+                                        <span className="ios-spinner">◌</span>
+                                        識別中...
+                                    </span>
+                                ) : '開始識別'}
                             </button>
                         </div>
                     </div>
@@ -206,87 +207,87 @@ export default function HomePage() {
 
                 {/* Error Message */}
                 {error && (
-                    <div className="bg-red-100 border-4 border-red-400 rounded-2xl p-3 mb-6 text-center animate-bounce">
-                        <p className="text-red-700 font-black text-sm">💢 {error} 💢</p>
+                    <div className="ios-card p-4 border-l-4 border-red-500">
+                        <p className="text-red-600 text-[15px]">{error}</p>
                     </div>
                 )}
 
                 {/* Results Section */}
                 {orderData && (
-                    <div className="labubu-card p-6 animate-fade-in relative overflow-hidden">
-                        <div className="absolute -top-4 -right-4 text-6xl opacity-10 rotate-12">🦴</div>
-
-                        <div className="flex items-center justify-between mb-6 pb-2 border-b-2 border-fur border-dashed">
-                            <h2 className="text-2xl font-black text-fur">🦴 識別收穫</h2>
+                    <div className="ios-card overflow-hidden">
+                        <div className="px-4 py-3 bg-[#F2F2F7] flex items-center justify-between">
+                            <h2 className="text-[17px] font-semibold">識別結果</h2>
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setIsEditing(!isEditing)}
-                                    className="px-4 py-2 labubu-btn-secondary text-sm"
+                                    className="px-3 py-1 ios-btn-secondary text-[15px]"
                                 >
-                                    {isEditing ? '💾 儲存' : '📝 修改'}
+                                    {isEditing ? '完成' : '編輯'}
                                 </button>
                                 <button
                                     onClick={shareToApp}
-                                    className="px-4 py-2 labubu-btn-primary text-sm"
+                                    className="px-3 py-1 ios-btn-primary text-[15px]"
                                 >
-                                    📤 分享
+                                    分享
                                 </button>
                             </div>
                         </div>
 
-                        <div className="space-y-3 font-mono text-xs sm:text-sm">
+                        <div className="divide-y divide-[#C6C6C8]">
                             {[
-                                { label: '1. 店別', field: 'store' },
-                                { label: '2. 時間', field: 'datetime' },
-                                { label: '3. 代碼', field: 'itemCode', special: true },
+                                { label: '店別', field: 'store' },
+                                { label: '時間', field: 'datetime' },
+                                { label: '商品代碼', field: 'itemCode', special: true },
                             ].map((item) => (
-                                <div key={item.field} className="flex items-center gap-2">
-                                    <span className="font-black text-fur w-16 sm:w-20 shrink-0 text-xs">{item.label}:</span>
+                                <div key={item.field} className="ios-list-item flex items-center">
+                                    <span className="text-[15px] text-[#8E8E93] w-24 shrink-0">{item.label}</span>
                                     {isEditing ? (
                                         <input
                                             type="text"
                                             value={(orderData as any)[item.field]}
                                             onChange={(e) => handleInputChange(item.field as any, e.target.value)}
-                                            className="flex-1 labubu-input py-1 px-2 text-xs"
+                                            className="flex-1 ios-input py-2 px-3 text-[15px]"
                                         />
                                     ) : (
-                                        <span className={`font-bold ${item.special ? 'text-labubu-pink text-sm sm:text-base' : 'text-fur text-xs sm:text-sm'}`}>
+                                        <span className={`flex-1 text-[15px] ${item.special ? 'text-[#007AFF] font-medium' : 'text-[#000]'}`}>
                                             {item.field === 'itemCode' ? formatItemCode(orderData.itemCode, orderData.itemName) : (orderData as any)[item.field]}
                                         </span>
                                     )}
                                 </div>
                             ))}
 
-                            <div className="flex flex-col gap-1">
-                                <span className="font-black text-fur text-xs">4. 品名:</span>
+                            <div className="ios-list-item">
+                                <div className="text-[15px] text-[#8E8E93] mb-2">品名</div>
                                 {isEditing ? (
                                     <textarea
                                         value={orderData.itemName}
                                         onChange={(e) => handleInputChange('itemName', e.target.value)}
                                         rows={2}
-                                        className="labubu-input w-full text-xs"
+                                        className="w-full ios-input text-[15px]"
                                     />
                                 ) : (
-                                    <div className="bg-white/50 p-2 rounded-xl border-2 border-fur/20 font-bold text-fur leading-relaxed text-xs sm:text-sm">
+                                    <div className="text-[15px] text-[#000]">
                                         {orderData.itemName}
                                     </div>
                                 )}
                             </div>
 
-                            {['bookingNo', 'invoiceNo'].map((field, idx) => (
+                            {['bookingNo', 'invoiceNo'].map((field) => (
                                 ((orderData as any)[field] || isEditing) && (
-                                    <div key={field} className="flex items-center gap-2">
-                                        <span className="font-black text-fur w-16 sm:w-20 shrink-0 text-xs">{idx + 5}. {field === 'bookingNo' ? '訂編' : '發票'}:</span>
+                                    <div key={field} className="ios-list-item flex items-center">
+                                        <span className="text-[15px] text-[#8E8E93] w-24 shrink-0">
+                                            {field === 'bookingNo' ? '訂貨編號' : '發票號碼'}
+                                        </span>
                                         {isEditing ? (
                                             <input
                                                 type="text"
                                                 value={(orderData as any)[field] || ''}
                                                 onChange={(e) => handleInputChange(field as any, e.target.value)}
-                                                className="flex-1 labubu-input py-1 px-2 text-xs"
+                                                className="flex-1 ios-input py-2 px-3 text-[15px]"
                                                 placeholder="選填"
                                             />
                                         ) : (
-                                            <span className="font-bold text-fur opacity-80 text-xs sm:text-sm">{(orderData as any)[field]}</span>
+                                            <span className="flex-1 text-[15px] text-[#000]">{(orderData as any)[field]}</span>
                                         )}
                                     </div>
                                 )
@@ -295,16 +296,9 @@ export default function HomePage() {
                     </div>
                 )}
 
-                {/* Footer Decor */}
-                <div className="mt-8 text-center">
-                    <div className="inline-block px-4 py-2 bg-fur/5 rounded-full border-2 border-dashed border-fur/20">
-                        <p className="text-fur font-black text-xs">💡 確保照片清晰，Labubu 幫你搞定 🦷</p>
-                    </div>
-                    <div className="mt-4 flex justify-center gap-2 text-xs font-bold text-fur opacity-40">
-                        <span className="text-xs">Design: WG德 🐸</span>
-                        <span>•</span>
-                        <a href="https://github.com/lalawgwg99/ola2" className="hover:text-labubu-pink underline text-xs">📦 GitHub</a>
-                    </div>
+                {/* Footer */}
+                <div className="text-center py-4">
+                    <p className="text-[13px] text-[#8E8E93]">確保照片清晰以獲得最佳識別效果</p>
                 </div>
             </div>
         </div>

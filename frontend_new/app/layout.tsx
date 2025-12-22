@@ -8,8 +8,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-    title: " 🍎拍照傳單助手-Image Recognition ",
-    description: "AI 自動辨識訂單",
+    title: "訂單識別助手",
+    description: "AI 自動識別訂單資訊",
 };
 
 export const viewport = {
