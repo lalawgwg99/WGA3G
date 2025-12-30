@@ -436,15 +436,6 @@
             document.getElementById('resultsList').innerHTML = html;
         }
 
-        orderData[input.dataset.key] = input.value;
-                });
-            }
-
-        isEditing = !isEditing;
-        document.getElementById('editBtn').textContent = isEditing ? '完成' : '編輯';
-        renderResultsList();
-        }
-
         async function shareResult() {
             if (!orderData) return;
 
