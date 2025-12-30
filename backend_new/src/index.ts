@@ -33,8 +33,8 @@ app.post('/api/analyze-simple', async (c) => {
         const prompt = `你是一個訂單識別專家。請分析這張訂單圖片,依照視覺區域精確提取資訊:
 
 1. **左上角編號區**: 找出 bookingNo (訂貨編號) 和 invoiceNo (發票號碼)
-2. **左側店點資訊**: 提取 store (店別名稱,例如:台北101店、高雄夢時代)
-3. **表格明細區**: 找出 itemCode (9碼商品代碼) 和 itemName (完整品名)
+2. **左側店點資訊**: 提取 store (店別名稱,例如:WG五甲店)
+3. **表格明細區**: 找出所有商品的 itemCode (9碼商品代碼) 和 itemName (完整品名),可能有 1-5 個商品
 4. **右側日期時間**: 提取 datetime (格式: YYYY/MM/DD HH:mm)
 
 請以 JSON 格式回傳:
@@ -43,8 +43,9 @@ app.post('/api/analyze-simple', async (c) => {
   "invoiceNo": "發票號碼或null",
   "store": "店別",
   "datetime": "日期時間",
-  "itemCode": "9碼代碼",
-  "itemName": "品名"
+  "items": [
+    { "itemCode": "9碼代碼", "itemName": "品名" }
+  ]
 }`;
 
         const result = await model.generateContent([

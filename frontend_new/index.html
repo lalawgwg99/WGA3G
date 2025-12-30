@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>訂單識別助手</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+            background: linear-gradient(135deg, #FFF5F7 0%, #F0E6FF 100%);
+            color: #4A4A4A;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Navigation Bar */
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 2px solid #FFD6E8;
+            padding: 14px 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar h1 {
+            font-size: 18px;
+            font-weight: 700;
+            text-align: center;
+            color: #9B7EBD;
+        }
+
+        /* Container */
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        /* Card Style */
+        .card {
+            background: #FFFFFF;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(155, 126, 189, 0.12);
+            margin-bottom: 16px;
+            overflow: hidden;
+            border: 1px solid #FFE8F0;
+        }
+
+        /* Upload Area */
+        .upload-area {
+            padding: 50px 20px;
+            text-align: center;
+            cursor: pointer;
+            background: linear-gradient(135deg, #FFF5F7 0%, #F8F0FF 100%);
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            background: linear-gradient(135deg, #FFE8F0 0%, #F0E6FF 100%);
+        }
+
+        .upload-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .upload-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #9B7EBD;
+        }
+
+        .upload-hint {
+            font-size: 14px;
+            color: #B8A4D4;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* Preview Section */
+        .preview-section {
+            display: none;
+        }
+
+        .preview-image {
+            width: 100%;
+            aspect-ratio: 3/4;
+            object-fit: contain;
+            background: linear-gradient(135deg, #FFF5F7 0%, #F8F0FF 100%);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            padding: 16px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #B8A4D4 0%, #9B7EBD 100%);
+            color: #fff;
+            flex: 2;
+            box-shadow: 0 2px 8px rgba(155, 126, 189, 0.3);
+        }
+
+        .btn-secondary {
+            background: #FFF0F5;
+            color: #9B7EBD;
+            flex: 1;
+            border: 2px solid #FFD6E8;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Results Section */
+        .results-section {
+            display: none;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            background: linear-gradient(135deg, #FFF5F7 0%, #F8F0FF 100%);
+        }
+
+        .results-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: #9B7EBD;
+        }
+
+        .results-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-small {
+            padding: 7px 14px;
+            font-size: 14px;
+            border-radius: 10px;
+        }
+
+        /* List Items */
+        .list-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            border-bottom: 1px solid #FFE8F0;
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .list-label {
+            width: 80px;
+            font-size: 14px;
+            color: #B8A4D4;
+            flex-shrink: 0;
+            font-weight: 500;
+        }
+
+        .list-value {
+            flex: 1;
+            font-size: 15px;
+            color: #4A4A4A;
+        }
+
+        .list-value.highlight {
+            color: #9B7EBD;
+            font-weight: 600;
+            background: #FFF5F7;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        /* Item Name Block */
+        .item-block {
+            padding: 14px 16px;
+            border-bottom: 1px solid #FFE8F0;
+            background: #FFFBFC;
+        }
+
+        .item-block-label {
+            font-size: 14px;
+            color: #B8A4D4;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .item-block-value {
+            font-size: 15px;
+            line-height: 1.5;
+            color: #4A4A4A;
+        }
+
+        /* Error */
+        .error-card {
+            display: none;
+            padding: 16px;
+            border-left: 4px solid #FFB3C1;
+            background: #FFF5F7;
+        }
+
+        .error-text {
+            color: #E85D75;
+            font-size: 15px;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 24px;
+            color: #B8A4D4;
+            font-size: 13px;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <h1>訂單識別</h1>
+    </nav>
+
+    <div class="container">
+        <!-- Upload Card -->
+        <div class="card upload-section" id="uploadSection">
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📸</div>
+                <div class="upload-title">上傳訂單圖片</div>
+                <div class="upload-hint">拍照或點擊選擇圖片</div>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+        </div>
+
+        <!-- Preview Card -->
+        <div class="card preview-section" id="previewSection">
+            <img id="previewImage" class="preview-image" src="" alt="預覽">
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="resetImage()">重新選擇</button>
+                <button class="btn btn-primary" id="analyzeBtn" onclick="analyzeImage()">開始識別</button>
+            </div>
+        </div>
+
+        <!-- Error Card -->
+        <div class="card error-card" id="errorCard">
+            <div class="error-text" id="errorText"></div>
+        </div>
+
+        <!-- Results Card -->
+        <div class="card results-section" id="resultsSection">
+            <div class="results-header">
+                <div class="results-title">識別結果</div>
+                <div class="results-actions">
+                    <button class="btn btn-small btn-primary" onclick="shareResult()">分享</button>
+                </div>
+            </div>
+            <div id="resultsList"></div>
+        </div>
+
+        <div class="footer">
+            確保照片清晰以獲得最佳識別效果
+        </div>
+    </div>
+
+    <script>
+        // API URL - 改成您的後端網址
+        const API_URL = 'https://ola2-backend.lalawgwg99.workers.dev';
+
+        let selectedFile = null;
+        let orderData = null;
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                document.getElementById('previewImage').src = e.target.result;
+                document.getElementById('uploadSection').style.display = 'none';
+                document.getElementById('previewSection').style.display = 'block';
+                document.getElementById('errorCard').style.display = 'none';
+                document.getElementById('resultsSection').style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function resetImage() {
+            selectedFile = null;
+            orderData = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('uploadSection').style.display = 'block';
+            document.getElementById('previewSection').style.display = 'none';
+            document.getElementById('errorCard').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+        }
+
+        async function analyzeImage() {
+            if (!selectedFile) return;
+
+            const btn = document.getElementById('analyzeBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner">◌</span> 識別中...';
+
+            document.getElementById('errorCard').style.display = 'none';
+
+            try {
+                const formData = new FormData();
+                formData.append('image', selectedFile);
+
+                const response = await fetch(`${API_URL}/api/analyze-simple`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || '識別失敗');
+                }
+
+                orderData = result.data;
+                displayResults();
+
+            } catch (err) {
+                document.getElementById('errorCard').style.display = 'block';
+                document.getElementById('errorText').textContent = err.message || '識別過程發生錯誤';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '開始識別';
+            }
+        }
+
+        function formatItemCode(code, name) {
+            if (!code) return '';
+            const lowerName = name.toLowerCase();
+            let prefix = '';
+            if (lowerName.includes('手機') || lowerName.includes('手錶') || lowerName.includes('pods') || lowerName.includes('phone')) {
+                prefix = '42';
+            } else if (lowerName.includes('電腦') || lowerName.includes('mac') || lowerName.includes('ipad')) {
+                prefix = '45';
+            }
+            return prefix + code;
+        }
+
+        function displayResults() {
+            document.getElementById('resultsSection').style.display = 'block';
+            renderResultsList();
+        }
+
+        function renderResultsList() {
+            let html = '';
+
+            // 基本資訊
+            html += `<div class="list-item">
+                <span class="list-label">店別</span>
+                <span class="list-value">${orderData.store || ''}</span>
+            </div>`;
+
+            html += `<div class="list-item">
+                <span class="list-label">時間</span>
+                <span class="list-value">${orderData.datetime || ''}</span>
+            </div>`;
+
+            // 訂貨編號和發票號碼
+            ['bookingNo', 'invoiceNo'].forEach((key) => {
+                const label = key === 'bookingNo' ? '訂貨編號' : '發票號碼';
+                const value = orderData[key] || '';
+
+                if (value) {
+                    html += `<div class="list-item">
+                        <span class="list-label">${label}</span>
+                        <span class="list-value">${value}</span>
+                    </div>`;
+                }
+            });
+
+            // 商品列表
+            if (orderData.items && orderData.items.length > 0) {
+                orderData.items.forEach((item, index) => {
+                    const code = formatItemCode(item.itemCode, item.itemName);
+
+                    html += `<div class="item-block">
+                        <div class="item-block-label">商品 ${index + 1}</div>
+                        <div class="list-value highlight" style="margin-bottom: 4px;">代碼: ${code}</div>
+                        <div class="item-block-value">${item.itemName || ''}</div>
+                    </div>`;
+                });
+            }
+
+            document.getElementById('resultsList').innerHTML = html;
+        }
+
+        orderData[input.dataset.key] = input.value;
+                });
+            }
+
+        isEditing = !isEditing;
+        document.getElementById('editBtn').textContent = isEditing ? '完成' : '編輯';
+        renderResultsList();
+        }
+
+        async function shareResult() {
+            if (!orderData) return;
+
+            const lines = [
+                `1. 店別: ${orderData.store}`,
+                `2. 日期時間: ${orderData.datetime}`
+            ];
+
+            let lineNum = 3;
+
+            // 商品資訊
+            if (orderData.items && orderData.items.length > 0) {
+                orderData.items.forEach((item, index) => {
+                    const code = formatItemCode(item.itemCode, item.itemName);
+                    lines.push(`${lineNum}. itemcode: ${code}`);
+                    lineNum++;
+                    lines.push(`${lineNum}. 品名: ${item.itemName}`);
+                    lineNum++;
+                });
+            }
+
+            if (orderData.bookingNo) {
+                lines.push(`${lineNum}. 訂貨編號: ${orderData.bookingNo}`);
+                lineNum++;
+            }
+            if (orderData.invoiceNo) {
+                lines.push(`${lineNum}. 發票號碼: ${orderData.invoiceNo}`);
+                lineNum++;
+            }
+            lines.push(`${lineNum}. 🌈煩請協助配貨`);
+
+            const text = lines.join('\n');
+
+            try {
+                if (navigator.share && selectedFile) {
+                    await navigator.share({
+                        title: '訂單資訊',
+                        text: text,
+                        files: [selectedFile]
+                    });
+                } else {
+                    await navigator.clipboard.writeText(text);
+                    alert('已複製到剪貼簿！');
+                }
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        alert('已複製到剪貼簿！');
+                    } catch {
+                        console.error('Share failed:', err);
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
