@@ -325,14 +325,25 @@
         </div>
     </div>
 
-    <script>
-        // API URL
-        const API_URL = 'https://oolala-api.lalawgwg99.workers.dev';
+    <script type="module">
+        import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
         let selectedFile = null;
         let orderData = null;
 
-        function handleFileSelect(event) {
+        // 檢查 API Key
+        function getApiKey() {
+            let key = localStorage.getItem('GEMINI_API_KEY');
+            if (!key) {
+                key = prompt('請輸入您的 Gemini API Key (將儲存在瀏覽器中):');
+                if (key) {
+                    localStorage.setItem('GEMINI_API_KEY', key);
+                }
+            }
+            return key;
+        }
+
+        window.handleFileSelect = function (event) {
             const file = event.target.files[0];
             if (!file) return;
 
@@ -348,7 +359,7 @@
             reader.readAsDataURL(file);
         }
 
-        function resetImage() {
+        window.resetImage = function () {
             selectedFile = null;
             orderData = null;
             document.getElementById('fileInput').value = '';
@@ -358,8 +369,14 @@
             document.getElementById('resultsSection').style.display = 'none';
         }
 
-        async function analyzeImage() {
+        window.analyzeImage = async function () {
             if (!selectedFile) return;
+
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                alert('需要 API Key 才能進行識別');
+                return;
+            }
 
             const btn = document.getElementById('analyzeBtn');
             btn.disabled = true;
@@ -368,30 +385,68 @@
             document.getElementById('errorCard').style.display = 'none';
 
             try {
-                const formData = new FormData();
-                formData.append('image', selectedFile);
+                // 準備圖片
+                const base64Data = await fileToGenerativePart(selectedFile);
 
-                const response = await fetch(`${API_URL}/api/analyze-simple`, {
-                    method: 'POST',
-                    body: formData
-                });
+                // 初始化 Gemini
+                const genAI = new GoogleGenerativeAI(apiKey);
+                const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
-                const result = await response.json();
+                const prompt = `你是一個訂單識別專家。請分析這張訂單圖片,依照視覺區域精確提取資訊:
 
-                if (!result.success) {
-                    throw new Error(result.error || '識別失敗');
-                }
+1. **左上角編號區**: 找出 bookingNo (訂貨編號) 和 invoiceNo (發票號碼)
+2. **左側店點資訊**: 提取 store (店別名稱,例如:WG五甲店)
+3. **表格明細區**: 找出所有商品的 itemCode (9碼商品代碼) 和 itemName (完整品名),可能有 1-5 個商品
+4. **右側日期時間**: 提取 datetime (格式: YYYY/MM/DD HH:mm)
 
-                orderData = result.data;
+請以 JSON 格式回傳:
+{
+  "bookingNo": "訂貨編號或null",
+  "invoiceNo": "發票號碼或null",
+  "store": "店別",
+  "datetime": "日期時間",
+  "items": [
+    { "itemCode": "9碼代碼", "itemName": "品名" }
+  ]
+}`;
+
+                const result = await model.generateContent([prompt, base64Data]);
+                const response = await result.response;
+                const text = response.text();
+
+                const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                orderData = JSON.parse(cleanedText);
+
                 displayResults();
 
             } catch (err) {
+                console.error(err);
+                if (err.message.includes('API key')) {
+                    localStorage.removeItem('GEMINI_API_KEY'); // Key 可能無效,重設
+                    alert('API Key 無效,請重新輸入');
+                }
                 document.getElementById('errorCard').style.display = 'block';
                 document.getElementById('errorText').textContent = err.message || '識別過程發生錯誤';
             } finally {
                 btn.disabled = false;
                 btn.textContent = '開始識別';
             }
+        }
+
+        async function fileToGenerativePart(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const base64String = reader.result.split(',')[1];
+                    resolve({
+                        inlineData: {
+                            data: base64String,
+                            mimeType: file.type
+                        }
+                    });
+                };
+                reader.readAsDataURL(file);
+            });
         }
 
         function formatItemCode(code, name) {
@@ -454,7 +509,7 @@
             document.getElementById('resultsList').innerHTML = html;
         }
 
-        async function shareResult() {
+        window.shareResult = async function () {
             if (!orderData) return;
 
             const lines = [
