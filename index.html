@@ -437,14 +437,39 @@
 
         function formatItemCode(code, name) {
             if (!code) return '';
-            const lowerName = name.toLowerCase();
+            // 只取後9碼
+            const cleanCode = code.replace(/\D/g, '').slice(-9);
+            if (cleanCode.length < 9) return cleanCode;
+
+            const lowerName = (name || '').toLowerCase();
             let prefix = '';
             if (lowerName.includes('手機') || lowerName.includes('手錶') || lowerName.includes('pods') || lowerName.includes('phone') || lowerName.includes('watch')) {
                 prefix = '42';
             } else if (lowerName.includes('電腦') || lowerName.includes('mac') || lowerName.includes('ipad')) {
                 prefix = '45';
             }
-            return prefix + code;
+            return prefix + cleanCode;
+        }
+
+        function formatDatetime(datetime) {
+            if (!datetime) return '';
+            // 嘗試轉換為 年/月/日 HH:mm 格式
+            const match = datetime.match(/(\d{1,4})[\/\-](\d{1,2})[\/\-](\d{1,4})\s*(\d{1,2}:\d{2})?/);
+            if (match) {
+                let year, month, day;
+                if (match[1].length === 4) {
+                    // YYYY/MM/DD
+                    year = match[1]; month = match[2]; day = match[3];
+                } else if (match[3].length === 4) {
+                    // DD/MM/YYYY
+                    day = match[1]; month = match[2]; year = match[3];
+                } else {
+                    return datetime;
+                }
+                const time = match[4] || '';
+                return `${year}/${month.padStart(2, '0')}/${day.padStart(2, '0')} ${time}`.trim();
+            }
+            return datetime;
         }
 
         function displayResults() {
@@ -529,16 +554,15 @@
 
             const lines = [
                 `1. 店別: ${orderData.store}`,
-                `2. 日期時間: ${orderData.datetime}`
+                `2. 日期時間: ${formatDatetime(orderData.datetime)}`
             ];
 
             let lineNum = 3;
 
-            // 商品資訊
+            // 商品資訊 - 直接使用用戶編輯後的代碼，不再調用 formatItemCode
             if (orderData.items && orderData.items.length > 0) {
                 orderData.items.forEach((item, index) => {
-                    const code = formatItemCode(item.itemCode, item.itemName);
-                    lines.push(`${lineNum}. itemcode: ${code}`);
+                    lines.push(`${lineNum}. itemcode: ${item.itemCode}`);
                     lineNum++;
                     lines.push(`${lineNum}. 品名: ${item.itemName}`);
                     lineNum++;
