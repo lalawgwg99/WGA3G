@@ -618,14 +618,15 @@
             }
 
             if (orderData.bookingNo) {
-                lines.push(`${lineNum}. 訂貨編號: ${orderData.bookingNo}`);
+                lines.push(`${lineNum}. 編號: ${orderData.bookingNo}`);
                 lineNum++;
             }
             if (orderData.invoiceNo) {
-                lines.push(`${lineNum}. 發票號碼: ${orderData.invoiceNo}`);
+                lines.push(`${lineNum}. 發票: ${orderData.invoiceNo}`);
                 lineNum++;
             }
-            lines.push(`${lineNum}. 🌈煩請協助配貨`);
+            lines.push('');
+            lines.push('🌈煩請協助配貨');
 
             const text = lines.join('\n');
 
