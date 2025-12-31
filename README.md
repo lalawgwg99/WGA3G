@@ -1,73 +1,37 @@
-# OLA2 - 訂單識別助手 🦷
+# 📱 Phone SBS 訂單識別助手
 
-> Labubu 風格的 AI 自動識別訂單系統
+> 🚀 Powered by **Gemini 2.0 Flash** AI
 
-## 🎨 特色
+## ✨ 功能說明
 
-- **Labubu 主題設計** - 咖啡色、奶油色、粉色配色
-- **AI 智能識別** - 使用 Google Gemini 2.0 Flash
-- **響應式介面** - 適配所有手機尺寸
-- **一鍵分享** - 支援複製和 Web Share API
+上傳訂單圖片，AI 自動識別：
 
-## 📦 專案結構
+- 🏪 店別名稱
+- 📅 日期時間
+- 📋 訂貨編號 / 發票號碼
+- 📦 商品代碼與品名（支援多商品）
 
-```
-識圖傳單/
-├── backend_new/          # Cloudflare Workers 後端
-│   ├── src/
-│   │   └── index.ts     # API 端點
-│   ├── package.json
-│   └── wrangler.toml    # Workers 配置
-│
-└── frontend_new/         # Next.js 前端
-    ├── app/
-    │   ├── page.tsx     # 主頁面
-    │   ├── layout.tsx   # 布局
-    │   └── globals.css  # Labubu 樣式
-    ├── components/
-    ├── .env.production  # 生產環境變數
-    └── next.config.mjs  # Next.js 配置
-```
+識別結果可一鍵分享或複製！
 
-## 🚀 部署
+## 🛠️ 技術架構
 
-### 後端（Cloudflare Workers）
+| 層級 | 技術 |
+|------|------|
+| 前端 | HTML + JavaScript (原生) |
+| 後端 | Cloudflare Pages Functions |
+| AI 模型 | Google Gemini 2.0 Flash |
+| 安全 | API Key 存放於環境變數 |
 
-```bash
-cd backend_new
-npm install
-npx wrangler secret put GEMINI_API_KEY  # 設定 API Key
-npx wrangler deploy
-```
+## 🚀 部署步驟
 
-### 前端（Cloudflare Pages）
+1. **連接倉庫**: Cloudflare Pages → Connect to Git → 選擇此倉庫
+2. **建置設定**: Build command 留空，Output directory 設為 `/`
+3. **環境變數**: Settings → Environment variables → 添加 `GEMINI_API_KEY`
+4. **完成部署**: 推送任何變更自動觸發部署
 
-1. 連結 GitHub: `lalawgwg99/ola2`
-2. 設定參數：
-   - **Root directory**: `frontend_new`
-   - **Build command**: `npm run build`
-   - **Output directory**: `out`
-3. 環境變數：
-   - `NEXT_PUBLIC_API_URL` = `https://ola2-backend.lalawgwg99.workers.dev`
+## 🌐 線上版本
 
-## 🔗 網址
-
-- **後端**: <https://ola2-backend.lalawgwg99.workers.dev>
-- **前端**: (由 Cloudflare Pages 提供)
-
-## 💡 本地開發
-
-```bash
-# 後端
-cd backend_new
-npm install
-npx wrangler dev
-
-# 前端
-cd frontend_new
-npm install
-npm run dev
-```
+**<https://phonesbs.pages.dev>**
 
 ---
-設計：WG德 🐸🦷
+*Designed by 德*
