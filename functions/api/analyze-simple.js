@@ -19,7 +19,13 @@ export async function onRequestPost(context) {
         }
 
         const arrayBuffer = await image.arrayBuffer();
-        const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        const uint8Array = new Uint8Array(arrayBuffer);
+        let binary = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < uint8Array.length; i += chunkSize) {
+            binary += String.fromCharCode.apply(null, uint8Array.slice(i, i + chunkSize));
+        }
+        const base64Image = btoa(binary);
 
         const promptText = `你是一個訂單識別專家。請分析這張訂單圖片，依照視覺區域精確提取資訊：
 
