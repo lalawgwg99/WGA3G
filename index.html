@@ -228,6 +228,47 @@
             color: #4A4A4A;
         }
 
+        /* Editable Input */
+        .editable-input {
+            flex: 1;
+            font-size: 15px;
+            color: #4A4A4A;
+            border: 1px solid #E8D4F0;
+            border-radius: 8px;
+            padding: 8px 12px;
+            background: #FFFBFC;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .editable-input:focus {
+            border-color: #9B7EBD;
+            background: #fff;
+        }
+
+        .editable-input.highlight {
+            color: #9B7EBD;
+            font-weight: 600;
+        }
+
+        .confirm-btn {
+            width: 100%;
+            margin-top: 16px;
+            padding: 14px;
+            background: linear-gradient(135deg, #9B7EBD 0%, #7B5EA8 100%);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(155, 126, 189, 0.3);
+        }
+
+        .confirm-btn:active {
+            transform: scale(0.98);
+        }
+
         /* Error */
         .error-card {
             display: none;
@@ -414,44 +455,73 @@
         function renderResultsList() {
             let html = '';
 
-            // 基本資訊
+            // 基本資訊 - 可編輯輸入框
             html += `<div class="list-item">
                 <span class="list-label">店別</span>
-                <span class="list-value">${orderData.store || ''}</span>
+                <input type="text" class="editable-input" id="edit-store" value="${orderData.store || ''}">
             </div>`;
 
             html += `<div class="list-item">
                 <span class="list-label">時間</span>
-                <span class="list-value">${orderData.datetime || ''}</span>
+                <input type="text" class="editable-input" id="edit-datetime" value="${orderData.datetime || ''}">
             </div>`;
 
-            // 訂貨編號和發票號碼
-            ['bookingNo', 'invoiceNo'].forEach((key) => {
-                const label = key === 'bookingNo' ? '訂貨編號' : '發票號碼';
-                const value = orderData[key] || '';
+            html += `<div class="list-item">
+                <span class="list-label">訂貨編號</span>
+                <input type="text" class="editable-input" id="edit-bookingNo" value="${orderData.bookingNo || ''}">
+            </div>`;
 
-                if (value) {
-                    html += `<div class="list-item">
-                        <span class="list-label">${label}</span>
-                        <span class="list-value">${value}</span>
-                    </div>`;
-                }
-            });
+            html += `<div class="list-item">
+                <span class="list-label">發票號碼</span>
+                <input type="text" class="editable-input" id="edit-invoiceNo" value="${orderData.invoiceNo || ''}">
+            </div>`;
 
-            // 商品列表
+            // 商品列表 - 可編輯
             if (orderData.items && orderData.items.length > 0) {
                 orderData.items.forEach((item, index) => {
                     const code = formatItemCode(item.itemCode, item.itemName);
-
                     html += `<div class="item-block">
                         <div class="item-block-label">商品 ${index + 1}</div>
-                        <div class="list-value highlight" style="margin-bottom: 4px;">代碼: ${code}</div>
-                        <div class="item-block-value">${item.itemName || ''}</div>
+                        <div class="list-item" style="border: none; padding: 4px 0;">
+                            <span class="list-label">代碼</span>
+                            <input type="text" class="editable-input highlight" id="edit-code-${index}" value="${code}">
+                        </div>
+                        <div class="list-item" style="border: none; padding: 4px 0;">
+                            <span class="list-label">品名</span>
+                            <input type="text" class="editable-input" id="edit-name-${index}" value="${item.itemName || ''}">
+                        </div>
                     </div>`;
                 });
             }
 
+            // 確認按鈕
+            html += `<div style="padding: 16px;">
+                <button class="confirm-btn" onclick="confirmEdit()">✓ 確認資料正確</button>
+            </div>`;
+
             document.getElementById('resultsList').innerHTML = html;
+        }
+
+        function confirmEdit() {
+            // 從輸入框更新 orderData
+            orderData.store = document.getElementById('edit-store').value;
+            orderData.datetime = document.getElementById('edit-datetime').value;
+            orderData.bookingNo = document.getElementById('edit-bookingNo').value;
+            orderData.invoiceNo = document.getElementById('edit-invoiceNo').value;
+
+            // 更新商品資料
+            if (orderData.items) {
+                orderData.items.forEach((item, index) => {
+                    const codeInput = document.getElementById(`edit-code-${index}`);
+                    const nameInput = document.getElementById(`edit-name-${index}`);
+                    if (codeInput) item.itemCode = codeInput.value;
+                    if (nameInput) item.itemName = nameInput.value;
+                });
+            }
+
+            // 顯示成功提示並自動分享
+            alert('✅ 資料已儲存！點擊確定後將分享結果。');
+            shareResult();
         }
 
         async function shareResult() {
