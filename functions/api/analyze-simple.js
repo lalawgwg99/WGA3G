@@ -42,6 +42,7 @@ export async function onRequestPost(context) {
 3. **表格明細區**: 
    - itemCode: 從「Barcode Item/SubCode」欄位識別，每行可能有2個代碼，取9碼的那個
    - itemName: 從「Item Name/Sub Code Name」欄位識別完整品名
+   - quantity: 從「Booking Qty」欄位識別訂貨數量
 4. **日期時間**: Booking Date 欄位
 
 請以 JSON 格式回傳:
@@ -51,7 +52,7 @@ export async function onRequestPost(context) {
   "store": "店別",
   "datetime": "日期時間",
   "items": [
-    { "itemCode": "9碼代碼", "itemName": "品名" }
+    { "itemCode": "9碼代碼", "itemName": "品名", "quantity": 1 }
   ]
 }`;
 

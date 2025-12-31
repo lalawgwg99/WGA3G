@@ -546,7 +546,7 @@
                     html += `<div class="item-block" id="item-block-${index}">
                         <div class="item-header">
                             <div class="item-block-label">商品 ${index + 1}</div>
-                            <button class="delete-btn" onclick="deleteItem(${index})">\u274c 刪除</button>
+                            <button class="delete-btn" onclick="deleteItem(${index})">\\u274c 刪除</button>
                         </div>
                         <div class="list-item" style="border: none; padding: 4px 0;">
                             <span class="list-label">代碼</span>
@@ -555,6 +555,10 @@
                         <div class="list-item" style="border: none; padding: 4px 0;">
                             <span class="list-label">品名</span>
                             <input type="text" class="editable-input" id="edit-name-${index}" value="${item.itemName || ''}">
+                        </div>
+                        <div class="list-item" style="border: none; padding: 4px 0;">
+                            <span class="list-label">數量</span>
+                            <input type="number" class="editable-input" id="edit-qty-${index}" value="${item.quantity || 1}" min="1" style="width: 60px;">
                         </div>
                     </div>`;
                 });
@@ -587,8 +591,10 @@
                 orderData.items.forEach((item, index) => {
                     const codeInput = document.getElementById(`edit-code-${index}`);
                     const nameInput = document.getElementById(`edit-name-${index}`);
+                    const qtyInput = document.getElementById(`edit-qty-${index}`);
                     if (codeInput) item.itemCode = codeInput.value;
                     if (nameInput) item.itemName = nameInput.value;
+                    if (qtyInput) item.quantity = parseInt(qtyInput.value) || 1;
                 });
             }
 
@@ -612,7 +618,9 @@
                 orderData.items.forEach((item, index) => {
                     lines.push(`${lineNum}. itemcode: ${item.itemCode}`);
                     lineNum++;
-                    lines.push(`${lineNum}. 品名: ${item.itemName}`);
+                    const qty = item.quantity || 1;
+                    const qtyText = qty > 1 ? ` *${qty}` : '';
+                    lines.push(`${lineNum}. 品名: ${item.itemName}${qtyText}`);
                     lineNum++;
                 });
             }
