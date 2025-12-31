@@ -31,7 +31,19 @@
 
 ## 🌐 線上版本
 
-**<https://phonesbs.pages.dev>**
+<https://phonesbs.pages.dev>
+
+---
+
+## 📝 更新日誌
+
+### 2024-12-31
+
+- ✅ **模型升級**: 從 `gemini-2.0-flash-exp` 升級為穩定版 `gemini-2.0-flash`
+- 🐛 **修復 Bug**: 解決大圖片上傳時 `Maximum call stack size exceeded` 錯誤
+  - 使用分塊處理 base64 轉換，支援任意大小圖片
+- 📄 **文件更新**: 完善 README 說明文件
+- 🧹 **代碼清理**: 移除舊版 backend_new、backend_v2、frontend_new 目錄
 
 ---
 *Designed by 德*
