@@ -27,12 +27,20 @@ export async function onRequestPost(context) {
         }
         const base64Image = btoa(binary);
 
-        const promptText = `你是一個訂單識別專家。請分析這張訂單圖片，依照視覺區域精確提取資訊：
+        const promptText = `你是一個訂單識別專家。請分析這張訂單圖片，精確提取資訊：
 
-1. **左上角編號區**: 找出 bookingNo (訂貨編號) 和 invoiceNo (發票號碼)
-2. **左側店點資訊**: 提取 store (店別名稱,例如:WG五甲店)
-3. **表格明細區**: 找出所有商品的 itemCode (9碼商品代碼) 和 itemName (完整品名),可能有 1-5 個商品
-4. **右側日期時間**: 提取 datetime (格式: YYYY/MM/DD HH:mm)
+**重要規則**：
+- 商品只從「表格明細區」識別，不要從收據副聯或其他區域重複識別
+- 每個商品只出現一次，根據表格行數判斷商品數量
+- 如果同一商品在不同區域出現，只算一次
+
+**識別區域**：
+1. **編號區**: bookingNo (訂貨編號) 和 invoiceNo (發票號碼)
+2. **店點資訊**: store (店別名稱,例如:成功店(ZK))
+3. **表格明細區**: 只識別表格內的商品行，每行一個商品
+   - itemCode: 商品代碼 (通常9-13碼數字)
+   - itemName: 完整品名
+4. **日期時間**: datetime (格式: DD/MM/YYYY HH:mm 或 YYYY/MM/DD HH:mm)
 
 請以 JSON 格式回傳:
 {
@@ -41,7 +49,7 @@ export async function onRequestPost(context) {
   "store": "店別",
   "datetime": "日期時間",
   "items": [
-    { "itemCode": "9碼代碼", "itemName": "品名" }
+    { "itemCode": "代碼", "itemName": "品名" }
   ]
 }`;
 
