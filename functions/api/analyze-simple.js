@@ -68,6 +68,7 @@ export async function onRequestPost(context) {
                     ]
                 }],
                 generationConfig: {
+                    temperature: 0,
                     response_mime_type: "application/json"
                 }
             })
