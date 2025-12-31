@@ -9,7 +9,20 @@ type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-app.use('/*', cors());
+// CORS 設定 - 允許所有來源
+app.use('/*', cors({
+    origin: '*',
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    exposeHeaders: ['Content-Length'],
+    maxAge: 600,
+    credentials: false,
+}));
+
+// 健康檢查
+app.get('/health', (c) => {
+    return c.json({ status: 'ok', time: new Date().toISOString() });
+});
 
 // AI 圖片識別 API
 app.post('/api/analyze-simple', async (c) => {
