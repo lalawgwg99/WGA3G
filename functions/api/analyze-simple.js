@@ -27,20 +27,22 @@ export async function onRequestPost(context) {
         }
         const base64Image = btoa(binary);
 
-        const promptText = `你是一個訂單識別專家。請分析這張訂單圖片，精確提取資訊：
+        const promptText = `你是一個訂單識別專家。請分析這張「銷貨單報表-送貨公司聯」圖片，精確提取資訊：
 
 **重要規則**：
-- 商品只從「表格明細區」識別，不要從收據副聯或其他區域重複識別
-- 每個商品只出現一次，根據表格行數判斷商品數量
-- 如果同一商品在不同區域出現，只算一次
+- 商品只從主表格識別，不要從右側收據副聯重複識別
+- 每個商品只出現一次
+- itemCode 必須從「Barcode Item/SubCode」欄位識別，優先取較短的9碼數字
 
 **識別區域**：
-1. **編號區**: bookingNo (訂貨編號) 和 invoiceNo (發票號碼)
-2. **店點資訊**: store (店別名稱,例如:成功店(ZK))
-3. **表格明細區**: 只識別表格內的商品行，每行一個商品
-   - itemCode: 商品代碼 (通常9-13碼數字)
-   - itemName: 完整品名
-4. **日期時間**: datetime (格式: DD/MM/YYYY HH:mm 或 YYYY/MM/DD HH:mm)
+1. **編號區**: 
+   - bookingNo: Booking No. 欄位的訂貨編號
+   - invoiceNo: Invoice No. 欄位的發票號碼
+2. **店點資訊**: Selling Store 欄位的店別名稱
+3. **表格明細區**: 
+   - itemCode: 從「Barcode Item/SubCode」欄位識別，每行可能有2個代碼，取9碼的那個
+   - itemName: 從「Item Name/Sub Code Name」欄位識別完整品名
+4. **日期時間**: Booking Date 欄位
 
 請以 JSON 格式回傳:
 {
@@ -49,7 +51,7 @@ export async function onRequestPost(context) {
   "store": "店別",
   "datetime": "日期時間",
   "items": [
-    { "itemCode": "代碼", "itemName": "品名" }
+    { "itemCode": "9碼代碼", "itemName": "品名" }
   ]
 }`;
 
