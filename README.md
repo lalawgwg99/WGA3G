@@ -54,7 +54,7 @@
 | 層級 | 技術 |
 |------|------|
 | 前端 | HTML + JavaScript (原生) |
-| 影像處理 | Canvas API (銳化、對比、亮度) |
+| 影像處理 | 智慧文件增強引擎 Pro (Smart Enhance Pro) |
 | 雲端存儲 | Cloudflare R2 (14天過期) |
 | 後端 | Cloudflare Pages Functions |
 | AI 模型 | Google Gemini 2.5 Pro |
@@ -76,5 +76,5 @@
 - 📲 **分享優化**：2 則訊息（文字+連結、原圖）
 - � **隱私保護**：14 天自動刪除
 
----
+---何時不能傳?  A:我的api key 沒錢破產時...
 *Designed by WG德*
