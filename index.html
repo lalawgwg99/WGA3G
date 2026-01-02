@@ -480,27 +480,17 @@
                     📷 原始照片
                 </button>
                 <button class="mode-btn" id="modeDocument" onclick="setMode('document')">
-                    📠 文件模式
+                    📠 去陰影模式
                 </button>
             </div>
 
             <div id="modeIndicator" class="mode-indicator" style="display:none;"></div>
 
-            <!-- Threshold Control (Document Mode Only) -->
-            <div class="threshold-control" id="thresholdControl">
-                <div class="threshold-label">
-                    <span>⚙️ 黑白閾值調整</span>
-                    <span id="thresholdValue">130</span>
-                </div>
-                <input type="range" class="threshold-slider" id="thresholdSlider" min="50" max="200" value="130"
-                    oninput="adjustThreshold(this.value)">
-            </div>
-
             <div style="position: relative;">
                 <img id="previewImage" class="preview-image" src="" alt="預覽">
                 <div class="processing-overlay" id="processingOverlay" style="display:none;">
                     <span class="spinner" style="font-size: 32px; color: #F97316;">◌</span>
-                    <span class="processing-text">正在處理影像...</span>
+                    <span class="processing-text">正在去除陰影...</span>
                 </div>
             </div>
             <div class="button-group">
@@ -585,56 +575,105 @@
             reader.readAsDataURL(file);
         }
 
-        // ========== 數位傳真引擎核心 ==========
+        // ========== 去陰影引擎核心 (Shadow Killer) ==========
 
         /**
-         * 影像二值化處理 (Digital Fax Engine)
-         * 將彩色照片轉為高對比黑白，模擬傳真/影印效果
+         * 去陰影處理 (Illumination Normalization)
+         * 利用模糊+除法混合模式消除光照不均
+         * 原理：透過將原圖除以模糊背景，拉平亮度差異
          */
-        function processToDocumentMode(base64Data, threshold = 130) {
+        function processToDocumentMode(base64Data) {
             return new Promise((resolve) => {
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
 
-                    // 限制最大寬度為 1280px 以節省頻寬
-                    const maxWidth = 1280;
+                    // 限制最大寬度以提升效能
+                    const maxWidth = 1600;
                     const scale = img.width > maxWidth ? maxWidth / img.width : 1;
                     canvas.width = img.width * scale;
                     canvas.height = img.height * scale;
 
+                    // --- STEP A: 灰階化 (Grayscale) ---
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    let data = imageData.data;
 
-                    // 取得像素資料
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const data = imageData.data;
-
-                    // 二值化演算法 (Binarization)
                     for (let i = 0; i < data.length; i += 4) {
-                        // 標準灰階公式: 0.299R + 0.587G + 0.114B
                         const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-
-                        // 閾值判斷：低於閾值為純黑，高於為純白
-                        const finalColor = gray < threshold ? 0 : 255;
-
-                        data[i] = finalColor;     // R
-                        data[i + 1] = finalColor; // G
-                        data[i + 2] = finalColor; // B
-                        // Alpha 保持不變
+                        data[i] = gray;
+                        data[i + 1] = gray;
+                        data[i + 2] = gray;
                     }
-
                     ctx.putImageData(imageData, 0, 0);
 
-                    // 輸出為 JPEG
-                    resolve(canvas.toDataURL('image/jpeg', 0.9));
+                    // 儲存灰階原圖
+                    const grayscaleData = canvas.toDataURL();
+                    const grayscaleImg = new Image();
+                    grayscaleImg.src = grayscaleData;
+
+                    grayscaleImg.onload = () => {
+                        // --- STEP B: 製作模糊背景 (Blur Background) ---
+                        const blurCanvas = document.createElement('canvas');
+                        blurCanvas.width = canvas.width;
+                        blurCanvas.height = canvas.height;
+                        const blurCtx = blurCanvas.getContext('2d');
+
+                        // 強力模糊取得光影背景
+                        blurCtx.filter = 'blur(25px)';
+                        blurCtx.drawImage(grayscaleImg, 0, 0);
+
+                        // --- STEP C: 去除陰影 (Illumination Normalization) ---
+                        // 原理：Pixel = Original / Blurred
+                        // 陰影區：50/50=1(白); 亮區：200/200=1(白) -> 背景統一變白！
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.drawImage(grayscaleImg, 0, 0);
+
+                        // 使用 luminosity 模式來反轉模糊層亮度
+                        ctx.globalCompositeOperation = 'luminosity';
+                        ctx.filter = 'invert(1)';
+                        ctx.drawImage(blurCanvas, 0, 0);
+                        ctx.filter = 'none';
+
+                        // 加亮效果
+                        ctx.globalCompositeOperation = 'overlay';
+                        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                        ctx.globalCompositeOperation = 'source-over';
+
+                        // --- STEP D: 最終增強對比並二值化 ---
+                        imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        data = imageData.data;
+
+                        // 自適應閾值：計算平均亮度
+                        let sum = 0;
+                        for (let i = 0; i < data.length; i += 4) {
+                            sum += data[i];
+                        }
+                        const avg = sum / (data.length / 4);
+                        const threshold = Math.min(Math.max(avg * 0.85, 100), 200);
+
+                        for (let i = 0; i < data.length; i += 4) {
+                            const final = data[i] < threshold ? 0 : 255;
+                            data[i] = final;
+                            data[i + 1] = final;
+                            data[i + 2] = final;
+                        }
+
+                        ctx.putImageData(imageData, 0, 0);
+
+                        // 輸出為 JPEG
+                        resolve(canvas.toDataURL('image/jpeg', 0.9));
+                    };
                 };
                 img.src = base64Data;
             });
         }
 
         /**
-         * 切換模式 (原圖 / 文件模式)
+         * 切換模式 (原圖 / 去陰影模式)
          */
         async function setMode(mode) {
             currentMode = mode;
@@ -643,15 +682,12 @@
             document.getElementById('modeOriginal').classList.toggle('active', mode === 'original');
             document.getElementById('modeDocument').classList.toggle('active', mode === 'document');
 
-            // 顯示/隱藏閾值控制
-            document.getElementById('thresholdControl').classList.toggle('show', mode === 'document');
-
             // 更新模式指示器
             const indicator = document.getElementById('modeIndicator');
             if (mode === 'document') {
                 indicator.style.display = 'flex';
                 indicator.className = 'mode-indicator document';
-                indicator.innerHTML = '📠 文件模式已啟用 - 圖片將轉為高對比黑白';
+                indicator.innerHTML = '📠 去陰影模式 - 自動消除光照不均';
             } else {
                 indicator.style.display = 'flex';
                 indicator.className = 'mode-indicator';
@@ -670,7 +706,7 @@
         }
 
         /**
-         * 套用文件模式處理
+         * 套用去陰影處理
          */
         async function applyDocumentMode() {
             if (!originalImageData) return;
@@ -679,22 +715,10 @@
             overlay.style.display = 'flex';
 
             try {
-                processedImageData = await processToDocumentMode(originalImageData, currentThreshold);
+                processedImageData = await processToDocumentMode(originalImageData);
                 document.getElementById('previewImage').src = processedImageData;
             } finally {
                 overlay.style.display = 'none';
-            }
-        }
-
-        /**
-         * 調整閾值
-         */
-        async function adjustThreshold(value) {
-            currentThreshold = parseInt(value);
-            document.getElementById('thresholdValue').textContent = value;
-
-            if (currentMode === 'document' && originalImageData) {
-                await applyDocumentMode();
             }
         }
 
