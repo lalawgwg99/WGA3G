@@ -39,17 +39,24 @@ export async function onRequestPost(context) {
    - bookingNo: Booking No. 欄位的訂貨編號
    - invoiceNo: Invoice No. 欄位的發票號碼
 2. **店點資訊**: Selling Store 欄位的店別名稱
-3. **表格明細區**: 
+3. **顧客資訊**:
+   - customerName: Customer Name(顧客姓名)欄位
+   - phone: Telephone(電話號碼)欄位
+   - address: Delivery Address(送貨地址)欄位
+4. **表格明細區**: 
    - itemCode: 從「Barcode Item/SubCode」欄位識別，每行可能有2個代碼，取9碼的那個
    - itemName: 從「Item Name/Sub Code Name」欄位識別完整品名
    - quantity: 從「Booking Qty」欄位識別訂貨數量
-4. **日期時間**: Booking Date 欄位
+5. **日期時間**: Booking Date 或 Printing Date & Time 欄位
 
 請以 JSON 格式回傳:
 {
-  "bookingNo": "訂貨編號或null",
-  "invoiceNo": "發票號碼或null",
+  "bookingNo": "訂貨編號",
+  "invoiceNo": "發票號碼",
   "store": "店別",
+  "customerName": "顧客姓名",
+  "phone": "電話號碼",
+  "address": "送貨地址",
   "datetime": "日期時間",
   "items": [
     { "itemCode": "9碼代碼", "itemName": "品名", "quantity": 1 }

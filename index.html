@@ -324,38 +324,33 @@
             }
         }
 
-        /* Document Mode Toggle */
-        .mode-toggle {
+        /* 雙圖並排顯示 */
+        .dual-preview {
             display: flex;
             gap: 8px;
-            padding: 12px 16px;
+            padding: 12px;
             background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
-            border-bottom: 1px solid #FCD34D;
         }
 
-        .mode-btn {
+        .preview-item {
             flex: 1;
-            padding: 10px 16px;
-            border-radius: 10px;
-            font-size: 14px;
+            text-align: center;
+        }
+
+        .preview-label {
+            font-size: 13px;
             font-weight: 600;
-            border: 2px solid #FCD34D;
+            color: #EA580C;
+            margin-bottom: 8px;
+        }
+
+        .preview-image-small {
+            width: 100%;
+            aspect-ratio: 3/4;
+            object-fit: contain;
             background: #fff;
-            color: #64748B;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .mode-btn.active {
-            background: linear-gradient(135deg, #FBBF24 0%, #F97316 100%);
-            color: #fff;
-            border-color: #F97316;
-            box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
-        }
-
-        .mode-btn:not(.active):hover {
-            background: #FFFBEB;
-            border-color: #F97316;
+            border-radius: 8px;
+            border: 1px solid #FCD34D;
         }
 
         .mode-indicator {
@@ -390,6 +385,7 @@
             justify-content: center;
             gap: 12px;
             z-index: 10;
+            border-radius: 8px;
         }
 
         .processing-text {
@@ -474,23 +470,20 @@
 
         <!-- Preview Card -->
         <div class="card preview-section" id="previewSection">
-            <!-- Mode Toggle -->
-            <div class="mode-toggle">
-                <button class="mode-btn active" id="modeOriginal" onclick="setMode('original')">
-                    📷 原始照片
-                </button>
-                <button class="mode-btn" id="modeDocument" onclick="setMode('document')">
-                    📠 去陰影模式
-                </button>
-            </div>
-
-            <div id="modeIndicator" class="mode-indicator" style="display:none;"></div>
-
-            <div style="position: relative;">
-                <img id="previewImage" class="preview-image" src="" alt="預覽">
-                <div class="processing-overlay" id="processingOverlay" style="display:none;">
-                    <span class="spinner" style="font-size: 32px; color: #F97316;">◌</span>
-                    <span class="processing-text">正在去除陰影...</span>
+            <!-- 雙圖並排顯示 -->
+            <div class="dual-preview">
+                <div class="preview-item">
+                    <div class="preview-label">📷 原始照片</div>
+                    <img id="previewOriginal" class="preview-image-small" src="" alt="原圖">
+                </div>
+                <div class="preview-item">
+                    <div class="preview-label">📠 去陰影</div>
+                    <div style="position: relative;">
+                        <img id="previewProcessed" class="preview-image-small" src="" alt="處理後">
+                        <div class="processing-overlay" id="processingOverlay" style="display:none;">
+                            <span class="spinner" style="font-size: 24px; color: #F97316;">◌</span>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="button-group">
@@ -549,7 +542,7 @@
         let currentMode = 'original';  // 'original' 或 'document'
         let currentThreshold = 130;    // 預設閾值
 
-        function handleFileSelect(event) {
+        async function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
 
@@ -557,19 +550,24 @@
             const reader = new FileReader();
             reader.onload = async function (e) {
                 originalImageData = e.target.result;
-                processedImageData = null;
-                currentMode = 'original';
 
-                // 重設 UI 狀態
-                document.getElementById('modeOriginal').classList.add('active');
-                document.getElementById('modeDocument').classList.remove('active');
-                document.getElementById('modeIndicator').style.display = 'none';
-
-                document.getElementById('previewImage').src = e.target.result;
+                // 顯示原圖
+                document.getElementById('previewOriginal').src = originalImageData;
                 document.getElementById('uploadSection').style.display = 'none';
                 document.getElementById('previewSection').style.display = 'block';
                 document.getElementById('errorCard').style.display = 'none';
                 document.getElementById('resultsSection').style.display = 'none';
+
+                // 自動處理去陰影
+                const overlay = document.getElementById('processingOverlay');
+                overlay.style.display = 'flex';
+
+                try {
+                    processedImageData = await processToDocumentMode(originalImageData);
+                    document.getElementById('previewProcessed').src = processedImageData;
+                } finally {
+                    overlay.style.display = 'none';
+                }
             };
             reader.readAsDataURL(file);
         }
@@ -671,55 +669,7 @@
             });
         }
 
-        /**
-         * 切換模式 (原圖 / 去陰影模式)
-         */
-        async function setMode(mode) {
-            currentMode = mode;
-
-            // 更新按鈕狀態
-            document.getElementById('modeOriginal').classList.toggle('active', mode === 'original');
-            document.getElementById('modeDocument').classList.toggle('active', mode === 'document');
-
-            // 更新模式指示器
-            const indicator = document.getElementById('modeIndicator');
-            if (mode === 'document') {
-                indicator.style.display = 'flex';
-                indicator.className = 'mode-indicator document';
-                indicator.innerHTML = '📠 去陰影模式 - 自動消除光照不均';
-            } else {
-                indicator.style.display = 'flex';
-                indicator.className = 'mode-indicator';
-                indicator.innerHTML = '📷 使用原始照片';
-            }
-
-            // 切換預覽圖
-            if (originalImageData) {
-                if (mode === 'document') {
-                    await applyDocumentMode();
-                } else {
-                    document.getElementById('previewImage').src = originalImageData;
-                    processedImageData = null;
-                }
-            }
-        }
-
-        /**
-         * 套用去陰影處理
-         */
-        async function applyDocumentMode() {
-            if (!originalImageData) return;
-
-            const overlay = document.getElementById('processingOverlay');
-            overlay.style.display = 'flex';
-
-            try {
-                processedImageData = await processToDocumentMode(originalImageData);
-                document.getElementById('previewImage').src = processedImageData;
-            } finally {
-                overlay.style.display = 'none';
-            }
-        }
+        // setMode 和 applyDocumentMode 已移除 - 現在上傳後自動顯示雙圖
 
         function resetImage() {
             selectedFile = null;
