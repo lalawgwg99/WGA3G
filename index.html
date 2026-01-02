@@ -584,45 +584,82 @@
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
 
-                    // 保持原圖超高解析度 (4K)
-                    const maxWidth = 3840;
+                    // 保持原圖高解析度 (超過3000px運算會稍慢但列印效果好)
+                    const maxWidth = 3200;
                     const scale = img.width > maxWidth ? maxWidth / img.width : 1;
                     const width = Math.floor(img.width * scale);
                     const height = Math.floor(img.height * scale);
                     canvas.width = width;
                     canvas.height = height;
 
-                    // 使用 CSS Filter 強力美化
-                    // 提高一點對比度讓字變黑
-                    ctx.filter = 'contrast(1.25) brightness(1.05) saturate(1.1)';
+                    // 1. 繪製原圖
                     ctx.drawImage(img, 0, 0, width, height);
-                    ctx.filter = 'none';
+                    const originalData = ctx.getImageData(0, 0, width, height);
+                    const data = originalData.data;
 
-                    // 銳化處理 (Unsharp Mask)
-                    const imageData = ctx.getImageData(0, 0, width, height);
-                    const data = imageData.data;
-
+                    // 2. 建立背景估計圖 (大半徑高斯模糊) - 模擬光影分佈
                     const blurCanvas = document.createElement('canvas');
                     blurCanvas.width = width;
                     blurCanvas.height = height;
                     const blurCtx = blurCanvas.getContext('2d');
-                    blurCtx.filter = 'blur(1px)';
+                    blurCtx.filter = 'blur(50px)'; // 大半徑以忽略文字
                     blurCtx.drawImage(canvas, 0, 0);
-                    const blurData = blurCtx.getImageData(0, 0, width, height).data;
+                    const backgroundData = blurCtx.getImageData(0, 0, width, height).data;
 
-                    // 大幅增加銳化強度 (讓文字邊緣更銳利)
-                    const sharpAmount = 1.2;
+                    // 3. 執行「背景除法 (Divide)」 - 這是掃描軟體的核心去背技術
+                    // 公式: Result = (Original / Background) * 255
                     for (let i = 0; i < data.length; i += 4) {
-                        for (let c = 0; c < 3; c++) {
-                            const idx = i + c;
-                            const diff = data[idx] - blurData[idx];
-                            data[idx] = Math.max(0, Math.min(255, data[idx] + sharpAmount * diff));
+                        for (let c = 0; c < 3; c++) { // RGB
+                            const raw = data[i + c];
+                            const bg = backgroundData[i + c];
+
+                            // Divide: 去除光影，將背景拉白，保留文字顏色
+                            let norm = (raw / (bg + 1)) * 255;
+
+                            // 增強: 讓文字更黑 (Linear Burn simulation)
+                            // 稍微壓暗 < 200 的像素
+                            if (norm < 220) {
+                                norm = norm * 0.9;
+                            }
+
+                            data[i + c] = Math.min(255, Math.max(0, norm));
                         }
                     }
+                    ctx.putImageData(originalData, 0, 0);
 
-                    ctx.putImageData(imageData, 0, 0);
-                    // 輸出最高品質 JPEG (不壓縮)
-                    resolve(canvas.toDataURL('image/jpeg', 0.98));
+                    // 4. 最後銳化與色彩增強 (Post-Processing)
+                    // 先存下處理好的去背圖
+                    const cleanCtx = blurCtx; // 重用 canvas context
+                    cleanCtx.filter = 'none';
+                    cleanCtx.drawImage(canvas, 0, 0);
+
+                    // 清空主畫布，以濾鏡重繪
+                    // 增加對比與飽和度，讓彩色文字更鮮豔
+                    ctx.filter = 'contrast(1.2) saturate(1.3)';
+                    ctx.drawImage(blurCanvas, 0, 0);
+
+                    // 執行 Unsharp Mask 銳化
+                    const finalData = ctx.getImageData(0, 0, width, height);
+                    const finalPixels = finalData.data;
+
+                    // 為了銳化，我們需要一個小半徑模糊版
+                    cleanCtx.filter = 'blur(1px)';
+                    cleanCtx.drawImage(canvas, 0, 0);
+                    const smallBlurPixels = cleanCtx.getImageData(0, 0, width, height).data;
+
+                    const sharpAmount = 1.0; // 適度銳化
+                    for (let i = 0; i < finalPixels.length; i += 4) {
+                        for (let c = 0; c < 3; c++) {
+                            const diff = finalPixels[i + c] - smallBlurPixels[i + c];
+                            finalPixels[i + c] = Math.min(255, Math.max(0, finalPixels[i + c] + sharpAmount * diff));
+                        }
+                    }
+                    ctx.putImageData(finalData, 0, 0);
+
+                    // 輸出高品質 JPEG
+                    resolve(canvas.toDataURL('image/jpeg', 0.95));
+
+
                 };
                 img.src = base64Data;
             });
