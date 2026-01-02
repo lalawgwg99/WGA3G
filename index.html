@@ -805,25 +805,30 @@
         function renderResultsList() {
             let html = '';
 
-            // 基本資訊 - 可編輯輸入框
+            // 基本資訊 - 按照範例順序：店點、日期、單號、電話、地址、備註
             html += `<div class="list-item">
-                <span class="list-label">店別</span>
+                <span class="list-label">店點</span>
                 <input type="text" class="editable-input" id="edit-store" value="${orderData.store || ''}">
             </div>`;
 
             html += `<div class="list-item">
-                <span class="list-label">時間</span>
+                <span class="list-label">日期</span>
                 <input type="text" class="editable-input" id="edit-datetime" value="${orderData.datetime || ''}">
             </div>`;
 
             html += `<div class="list-item">
-                <span class="list-label">訂貨編號</span>
-                <input type="text" class="editable-input" id="edit-bookingNo" value="${orderData.bookingNo || ''}">
+                <span class="list-label">單號</span>
+                <input type="text" class="editable-input highlight" id="edit-bookingNo" value="${orderData.bookingNo || ''}">
             </div>`;
 
             html += `<div class="list-item">
-                <span class="list-label">發票號碼</span>
-                <input type="text" class="editable-input" id="edit-invoiceNo" value="${orderData.invoiceNo || ''}">
+                <span class="list-label">電話</span>
+                <input type="text" class="editable-input" id="edit-phone" value="${orderData.phone || ''}">
+            </div>`;
+
+            html += `<div class="list-item">
+                <span class="list-label">地址</span>
+                <input type="text" class="editable-input" id="edit-address" value="${orderData.address || ''}">
             </div>`;
 
             // 商品列表 - 可編輯 + 可刪除
@@ -851,6 +856,12 @@
                 });
             }
 
+            // 備註欄位
+            html += `<div class="list-item">
+                <span class="list-label">備註</span>
+                <input type="text" class="editable-input" id="edit-remarks" value="${orderData.remarks || ''}" placeholder="客戶只送不裝等...">
+            </div>`;
+
             // 確認按鈕
             html += `<div style="padding: 16px;">
                 <button class="confirm-btn" onclick="confirmEdit()">✓ 確認資料正確</button>
@@ -871,7 +882,9 @@
             orderData.store = document.getElementById('edit-store').value;
             orderData.datetime = document.getElementById('edit-datetime').value;
             orderData.bookingNo = document.getElementById('edit-bookingNo').value;
-            orderData.invoiceNo = document.getElementById('edit-invoiceNo').value;
+            orderData.phone = document.getElementById('edit-phone').value;
+            orderData.address = document.getElementById('edit-address').value;
+            orderData.remarks = document.getElementById('edit-remarks').value;
 
             // 更新商品資料
             if (orderData.items) {
@@ -893,54 +906,62 @@
         async function shareResult() {
             if (!orderData) return;
 
+            // 格式跟 Line 群組範例一致
             const lines = [
-                `1. 店別: ${orderData.store}`,
-                `2. 日期時間: ${formatDatetime(orderData.datetime)}`
+                `店點：${orderData.store || ''}`,
+                `日期：${formatDatetime(orderData.datetime)}`,
+                `${orderData.bookingNo || ''}`
             ];
 
-            let lineNum = 3;
-
-            // 商品資訊 - 直接使用用戶編輯後的代碼，不再調用 formatItemCode
-            if (orderData.items && orderData.items.length > 0) {
-                orderData.items.forEach((item, index) => {
-                    lines.push(`${lineNum}. itemcode: ${item.itemCode}`);
-                    lineNum++;
-                    const qty = item.quantity || 1;
-                    const qtyText = qty > 1 ? ` *${qty}` : '';
-                    lines.push(`${lineNum}. 品名: ${item.itemName}${qtyText}`);
-                    lineNum++;
-                });
+            // 電話、地址
+            if (orderData.phone) {
+                lines.push(`電話：${orderData.phone}`);
+            }
+            if (orderData.address) {
+                lines.push(`地址：${orderData.address}`);
             }
 
-            if (orderData.bookingNo) {
-                lines.push(`${lineNum}. 編號: ${orderData.bookingNo}`);
-                lineNum++;
+            // 備註
+            if (orderData.remarks) {
+                lines.push(`備註：${orderData.remarks}`);
+            } else {
+                lines.push('🌈煩請協助配貨');
             }
-            if (orderData.invoiceNo) {
-                lines.push(`${lineNum}. 發票: ${orderData.invoiceNo}`);
-                lineNum++;
-            }
-            lines.push('');
-            lines.push('🌈煩請協助配貨');
 
             const text = lines.join('\n');
 
             try {
-                if (navigator.share && selectedFile) {
+                // 準備分享的圖片：原圖 + 處理後的清晰圖
+                const filesToShare = [];
+
+                // 1. 原始訂單照片
+                if (selectedFile) {
+                    filesToShare.push(selectedFile);
+                }
+
+                // 2. 處理後的清晰圖片（如果有）
+                if (processedImageData) {
+                    const response = await fetch(processedImageData);
+                    const blob = await response.blob();
+                    const processedFile = new File([blob], 'clear_document.jpg', { type: 'image/jpeg' });
+                    filesToShare.push(processedFile);
+                }
+
+                if (navigator.share && filesToShare.length > 0) {
                     await navigator.share({
                         title: '訂單資訊',
                         text: text,
-                        files: [selectedFile]
+                        files: filesToShare
                     });
                 } else {
                     await navigator.clipboard.writeText(text);
-                    alert('已複製到剪貼簿！');
+                    alert('已複製到剪貼簿！\n請手動貼上文字，再分享圖片。');
                 }
             } catch (err) {
                 if (err.name !== 'AbortError') {
                     try {
                         await navigator.clipboard.writeText(text);
-                        alert('已複製到剪貼簿！');
+                        alert('已複製到剪貼簿！\n請手動貼上文字，再分享圖片。');
                     } catch {
                         console.error('Share failed:', err);
                     }
