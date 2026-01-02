@@ -921,12 +921,8 @@
                 lines.push(`地址：${orderData.address}`);
             }
 
-            // 備註
-            if (orderData.remarks) {
-                lines.push(`備註：${orderData.remarks}`);
-            } else {
-                lines.push('🌈煩請協助配貨');
-            }
+            // 備註 - 留白讓銷售自己填
+            lines.push(`備註：${orderData.remarks || ''}`);
 
             const text = lines.join('\n');
 
