@@ -513,15 +513,15 @@
                 style="background: #FFFBEB; border-radius: 12px; padding: 16px; margin-bottom: 16px; text-align: left;">
                 <div style="font-weight: 600; color: #EA580C; margin-bottom: 8px;">📋 操作說明</div>
                 <div style="font-size: 13px; color: #475569; line-height: 1.8;">
-                    1️⃣ 上傳訂單照片<br>
-                    2️⃣ 點「📠 文件模式」調整清晰度<br>
-                    3️⃣ 點擊「開始識別」<br>
-                    4️⃣ 檢查並修正識別結果<br>
-                    5️⃣ 點擊「確認資料正確」分享
+                    1️⃣ 上傳訂單照片（自動美化處理）<br>
+                    2️⃣ 點擊「開始識別」<br>
+                    3️⃣ 檢查並修正識別結果<br>
+                    4️⃣ 點擊「確認」分享到 LINE<br>
+                    📸 高清圖 14 天後自動刪除
                 </div>
             </div>
             <div style="margin-bottom: 8px; color: #64748B;">確保照片清晰以獲得最佳識別效果</div>
-            <div style="font-size: 11px; color: #94A3B8; letter-spacing: 1px;">Designed by 德</div>
+            <div style="font-size: 11px; color: #94A3B8; letter-spacing: 1px;">Designed by WG德</div>
             <div style="margin-top: 8px;">
                 <a href="https://github.com/lalawgwg99/WGA3G" target="_blank"
                     style="font-size: 11px; color: #F97316; text-decoration: none;">
@@ -572,13 +572,10 @@
             reader.readAsDataURL(file);
         }
 
-        // ========== Sauvola 自適應閾值引擎 (Pure JS) ==========
+        // ========== 圖片美化引擎 ==========
 
         /**
-         * Sauvola 自適應閾值演算法
-         * 公式: T(x,y) = mean * (1 + k * (stddev / R - 1))
-         * 比簡單的局部平均更能保留淺色文字
-         * 使用積分圖加速計算
+         * 圖片美化增強（銳化+對比+亮度）
          */
         function processToDocumentMode(base64Data) {
             return new Promise((resolve) => {
@@ -587,97 +584,70 @@
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
 
-                    // 限制寬度以加速處理
-                    const maxWidth = 1200;
+                    // 保持高解析度
+                    const maxWidth = 1600;
                     const scale = img.width > maxWidth ? maxWidth / img.width : 1;
                     const width = Math.floor(img.width * scale);
                     const height = Math.floor(img.height * scale);
                     canvas.width = width;
                     canvas.height = height;
 
+                    // 使用 CSS Filter 美化
+                    ctx.filter = 'contrast(1.2) brightness(1.08) saturate(1.1)';
                     ctx.drawImage(img, 0, 0, width, height);
+                    ctx.filter = 'none';
+
+                    // 銳化處理 (Unsharp Mask)
                     const imageData = ctx.getImageData(0, 0, width, height);
                     const data = imageData.data;
 
-                    // --- STEP 1: 轉灰階 ---
-                    const gray = new Float32Array(width * height);
-                    for (let i = 0; i < gray.length; i++) {
-                        const idx = i * 4;
-                        gray[i] = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
-                    }
+                    const blurCanvas = document.createElement('canvas');
+                    blurCanvas.width = width;
+                    blurCanvas.height = height;
+                    const blurCtx = blurCanvas.getContext('2d');
+                    blurCtx.filter = 'blur(1px)';
+                    blurCtx.drawImage(canvas, 0, 0);
+                    const blurData = blurCtx.getImageData(0, 0, width, height).data;
 
-                    // --- STEP 2: 建立積分圖和積分平方圖 ---
-                    const w1 = width + 1;
-                    const h1 = height + 1;
-                    const integral = new Float64Array(w1 * h1);
-                    const integralSq = new Float64Array(w1 * h1);
-
-                    for (let y = 0; y < height; y++) {
-                        let rowSum = 0, rowSumSq = 0;
-                        for (let x = 0; x < width; x++) {
-                            const val = gray[y * width + x];
-                            rowSum += val;
-                            rowSumSq += val * val;
-                            const idx = (y + 1) * w1 + (x + 1);
-                            integral[idx] = integral[y * w1 + (x + 1)] + rowSum;
-                            integralSq[idx] = integralSq[y * w1 + (x + 1)] + rowSumSq;
+                    const sharpAmount = 0.4;
+                    for (let i = 0; i < data.length; i += 4) {
+                        for (let c = 0; c < 3; c++) {
+                            const idx = i + c;
+                            const diff = data[idx] - blurData[idx];
+                            data[idx] = Math.max(0, Math.min(255, data[idx] + sharpAmount * diff));
                         }
-                    }
-
-                    // --- STEP 3: Sauvola 自適應閾值 ---
-                    const blockSize = 31;   // 區塊大小 (奇數)
-                    const k = 0.2;          // Sauvola 參數 (0.2-0.5)
-                    const R = 128;          // 動態範圍 (灰階通常是 128)
-                    const halfBlock = Math.floor(blockSize / 2);
-                    const output = new Uint8Array(width * height);
-
-                    for (let y = 0; y < height; y++) {
-                        for (let x = 0; x < width; x++) {
-                            // 局部區域邊界
-                            const x1 = Math.max(0, x - halfBlock);
-                            const y1 = Math.max(0, y - halfBlock);
-                            const x2 = Math.min(width - 1, x + halfBlock);
-                            const y2 = Math.min(height - 1, y + halfBlock);
-                            const area = (x2 - x1 + 1) * (y2 - y1 + 1);
-
-                            // 積分圖查詢 (O(1) 計算區域總和)
-                            const sum = integral[(y2 + 1) * w1 + (x2 + 1)]
-                                - integral[y1 * w1 + (x2 + 1)]
-                                - integral[(y2 + 1) * w1 + x1]
-                                + integral[y1 * w1 + x1];
-
-                            const sumSq = integralSq[(y2 + 1) * w1 + (x2 + 1)]
-                                - integralSq[y1 * w1 + (x2 + 1)]
-                                - integralSq[(y2 + 1) * w1 + x1]
-                                + integralSq[y1 * w1 + x1];
-
-                            // 局部平均和標準差
-                            const mean = sum / area;
-                            const variance = (sumSq / area) - (mean * mean);
-                            const stddev = Math.sqrt(Math.max(0, variance));
-
-                            // Sauvola 閾值公式
-                            const threshold = mean * (1 + k * (stddev / R - 1));
-
-                            // 二值化
-                            const pixel = gray[y * width + x];
-                            output[y * width + x] = (pixel < threshold) ? 0 : 255;
-                        }
-                    }
-
-                    // --- STEP 4: 寫回 ---
-                    for (let i = 0; i < output.length; i++) {
-                        const idx = i * 4;
-                        data[idx] = output[i];
-                        data[idx + 1] = output[i];
-                        data[idx + 2] = output[i];
                     }
 
                     ctx.putImageData(imageData, 0, 0);
-                    resolve(canvas.toDataURL('image/jpeg', 0.9));
+                    resolve(canvas.toDataURL('image/jpeg', 0.92));
                 };
                 img.src = base64Data;
             });
+        }
+
+        /**
+         * 上傳圖片到 R2 雲端
+         */
+        async function uploadToR2(base64Data) {
+            try {
+                const response = await fetch(base64Data);
+                const blob = await response.blob();
+                const file = new File([blob], 'enhanced.jpg', { type: 'image/jpeg' });
+
+                const formData = new FormData();
+                formData.append('image', file);
+
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await uploadResponse.json();
+                return result.success ? result.url : null;
+            } catch (e) {
+                console.error('上傳失敗:', e);
+                return null;
+            }
         }
 
         // setMode 和 applyDocumentMode 已移除 - 現在上傳後自動顯示雙圖
@@ -897,7 +867,20 @@
         async function shareResult() {
             if (!orderData) return;
 
-            // 分享格式順序：店別、日期、姓名、電話、地址、訂單、發票、itemcode、商品名稱+數量、備註
+            // 顯示上傳中提示
+            const btn = document.querySelector('.share-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '⏳ 上傳中...';
+            }
+
+            // 上傳美化圖到 R2 獲取連結
+            let enhancedUrl = null;
+            if (processedImageData) {
+                enhancedUrl = await uploadToR2(processedImageData);
+            }
+
+            // 分享格式
             const lines = [
                 `店別：${orderData.store || ''}`,
                 `日期：${formatDatetime(orderData.datetime)}`,
@@ -921,23 +904,25 @@
             // 備註
             lines.push(`備註：${orderData.remarks || ''}`);
 
+            // 加入高清圖連結
+            if (enhancedUrl) {
+                lines.push('');
+                lines.push(`📸 高清版：${enhancedUrl}`);
+            }
+
             const text = lines.join('\n');
 
-            try {
-                // 準備分享的圖片：原圖 + 處理後的清晰圖
-                const filesToShare = [];
+            // 恢復按鈕
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '📤 分享到 LINE';
+            }
 
-                // 1. 原始訂單照片
+            try {
+                // 只分享原圖（1張），文字訊息含高清連結
+                const filesToShare = [];
                 if (selectedFile) {
                     filesToShare.push(selectedFile);
-                }
-
-                // 2. 處理後的清晰圖片（如果有）
-                if (processedImageData) {
-                    const response = await fetch(processedImageData);
-                    const blob = await response.blob();
-                    const processedFile = new File([blob], 'clear_document.jpg', { type: 'image/jpeg' });
-                    filesToShare.push(processedFile);
                 }
 
                 if (navigator.share && filesToShare.length > 0) {
@@ -954,7 +939,7 @@
                 if (err.name !== 'AbortError') {
                     try {
                         await navigator.clipboard.writeText(text);
-                        alert('已複製到剪貼簿！\n請手動貼上文字，再分享圖片。');
+                        alert('已複製到剪貼簿！');
                     } catch {
                         console.error('Share failed:', err);
                     }
