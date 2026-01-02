@@ -477,7 +477,7 @@
                     <img id="previewOriginal" class="preview-image-small" src="" alt="原圖">
                 </div>
                 <div class="preview-item">
-                    <div class="preview-label">📠 去陰影</div>
+                    <div class="preview-label">✨ 美化版</div>
                     <div style="position: relative;">
                         <img id="previewProcessed" class="preview-image-small" src="" alt="處理後">
                         <div class="processing-overlay" id="processingOverlay" style="display:none;">
@@ -584,8 +584,8 @@
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
 
-                    // 保持高解析度
-                    const maxWidth = 1600;
+                    // 保持高解析度 (2K 解析度，優於 LINE 一般壓縮)
+                    const maxWidth = 2048;
                     const scale = img.width > maxWidth ? maxWidth / img.width : 1;
                     const width = Math.floor(img.width * scale);
                     const height = Math.floor(img.height * scale);
