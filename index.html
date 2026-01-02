@@ -572,10 +572,13 @@
             reader.readAsDataURL(file);
         }
 
-        // ========== 圖片美化引擎 ==========
+        // ========== 圖片美化引擎 (Smart Enhance Pro) ==========
 
         /**
-         * 圖片美化增強（銳化+對比+亮度）
+         * 圖片美化增強 - 專為列印優化
+         * 1. 解析度優化：保持 3000px 高畫質
+         * 2. 自動色階 (Quantile Levels)：使用 0.5% - 99.5% 分位數，防止噪點干擾，確保黑字更黑
+         * 3. 智慧銳化 (Unsharp Mask)：針對線條邊緣強化，防止模糊
          */
         function processToDocumentMode(base64Data) {
             return new Promise((resolve) => {
@@ -584,95 +587,120 @@
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
 
-                    // 保持原圖高解析度 (超過3000px運算會稍慢但列印效果好)
-                    const maxWidth = 3200;
+                    // 1. 解析度優化 (保持 3000px 以確保列印清晰)
+                    const maxWidth = 3000;
                     const scale = img.width > maxWidth ? maxWidth / img.width : 1;
                     const width = Math.floor(img.width * scale);
                     const height = Math.floor(img.height * scale);
                     canvas.width = width;
                     canvas.height = height;
 
-                    // 1. 繪製原圖
                     ctx.drawImage(img, 0, 0, width, height);
-                    const originalData = ctx.getImageData(0, 0, width, height);
-                    const data = originalData.data;
+                    const imageData = ctx.getImageData(0, 0, width, height);
+                    const data = imageData.data;
 
+                    // --- STEP 1: 建立亮度直方圖 (Histogram Analysis) ---
+                    // 使用直方圖分位數 (Quantiles) 來找黑白點，比單純 min/max 更穩定
+                    const histogram = new Array(256).fill(0);
+                    let totalPixels = 0;
 
-
-                    // --- STEP 1: 自動色階 (Auto Levels) ---
-                    // 找出影像中亮度分佈，重新映射到 0-255，解決照片灰濛濛的問題
-                    let min = 255;
-                    let max = 0;
-
-                    // 取樣計算 min/max (加速)
-                    for (let i = 0; i < data.length; i += 40) { // step 10 pixels
+                    // 採樣: 全掃描以獲得最精確結果 (JS 處理 10MP 現代手機圖只需 <100ms)
+                    for (let i = 0; i < data.length; i += 4) {
                         const r = data[i];
                         const g = data[i + 1];
                         const b = data[i + 2];
-                        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-                        if (lum < min) min = lum;
-                        if (lum > max) max = lum;
+                        // 計算亮度 (Luma Rec.601)
+                        const lum = (0.299 * r + 0.587 * g + 0.114 * b) | 0; // fast integer
+                        histogram[lum]++;
+                        totalPixels++;
                     }
 
-                    // 稍微縮小範圍 (避免極端噪點)
-                    min = Math.max(0, min - 5);
-                    max = Math.min(255, max + 5);
+                    // --- STEP 2: 計算分位數 (Find Quantiles) ---
+                    // 找 0.5% (黑點) 和 99.5% (白點) 位置，忽略極端值
+                    const lowCutoff = totalPixels * 0.005;
+                    const highCutoff = totalPixels * 0.995;
 
-                    const range = max - min;
-                    // 只有當對比度足夠時才執行 Levels
-                    if (range > 20) {
-                        const factor = 255 / range;
-                        for (let i = 0; i < data.length; i += 4) {
-                            for (let c = 0; c < 3; c++) {
-                                let val = data[i + c];
-                                // Levels Mapping: (val - min) * factor
-                                var mapped = (val - min) * factor;
-                                data[i + c] = Math.max(0, Math.min(255, mapped));
-                            }
+                    let min = 0;
+                    let max = 255;
+                    let count = 0;
+
+                    // 找黑點 (Shadows)
+                    for (let i = 0; i < 256; i++) {
+                        count += histogram[i];
+                        if (count > lowCutoff) {
+                            min = i;
+                            break;
                         }
                     }
 
-                    ctx.putImageData(originalData, 0, 0);
+                    // 找白點 (Highlights)
+                    count = 0;
+                    for (let i = 0; i < 256; i++) {
+                        count += histogram[i];
+                        if (count > highCutoff) {
+                            max = i;
+                            break;
+                        }
+                    }
 
-                    // --- STEP 2: 銳化 (Sharpen) ---
-                    // 1. 建立模糊版 mask
+                    // 保護：避免範圍太窄導致過度拉伸噪點 (例如全黑或全白圖)
+                    if (max - min < 50) {
+                        // 擴展範圍，以中心向外推
+                        let center = (min + max) / 2;
+                        min = Math.max(0, center - 40);
+                        max = Math.min(255, center + 40);
+                    }
+
+                    // --- STEP 3: 應用 Levels (Apply Levels) ---
+                    const range = max - min;
+                    const factor = 255 / (range || 1);
+
+                    for (let i = 0; i < data.length; i += 4) {
+                        // 獨立通道拉伸 (Per-channel contrast stretch based on Luma limits)
+                        // 這會讓背景更白，文字更黑，同時保留色彩
+                        for (let c = 0; c < 3; c++) {
+                            let val = data[i + c];
+                            val = (val - min) * factor;
+                            data[i + c] = val < 0 ? 0 : (val > 255 ? 255 : val);
+                        }
+                    }
+
+                    ctx.putImageData(imageData, 0, 0);
+
+                    // --- STEP 4: 智慧銳化 (Unsharp Mask) ---
+                    // 列印清晰的關鍵：Unsharp Mask
                     const blurCanvas = document.createElement('canvas');
                     blurCanvas.width = width;
                     blurCanvas.height = height;
                     const blurCtx = blurCanvas.getContext('2d');
-                    blurCtx.filter = 'blur(1px)';
+                    blurCtx.filter = 'blur(1px)'; // 小半徑，強化線條
                     blurCtx.drawImage(canvas, 0, 0);
                     const blurData = blurCtx.getImageData(0, 0, width, height).data;
 
-                    // 2. 執行 Unsharp Mask
-                    const sharpAmount = 0.8; // 強度 0.8 (適中)
+                    const sharpAmount = 0.85; // 適中銳化強度
 
                     for (let i = 0; i < data.length; i += 4) {
                         for (let c = 0; c < 3; c++) {
                             const orig = data[i + c];
                             const blur = blurData[i + c];
-                            const diff = orig - blur;
-                            // 強化邊緣
-                            var newVal = orig + sharpAmount * diff;
-                            data[i + c] = Math.max(0, Math.min(255, newVal));
+                            // USM 公式: Original + Amount * (Original - Blurred)
+                            let val = orig + sharpAmount * (orig - blur);
+                            data[i + c] = val < 0 ? 0 : (val > 255 ? 255 : val);
                         }
                     }
+                    ctx.putImageData(imageData, 0, 0);
 
-                    ctx.putImageData(originalData, 0, 0);
-
-                    // --- STEP 3: CSS 濾鏡微調 ---
+                    // --- STEP 5: 最終微調 (Final Touch) ---
                     const finalCanvas = document.createElement('canvas');
                     finalCanvas.width = width;
                     finalCanvas.height = height;
                     const finalCtx = finalCanvas.getContext('2d');
-
-                    finalCtx.filter = 'contrast(1.15) saturate(1.15) brightness(1.02)';
+                    // 稍微增加對比度與亮度，讓紙張感覺更白
+                    finalCtx.filter = 'contrast(1.1) brightness(1.03)';
                     finalCtx.drawImage(canvas, 0, 0);
 
-                    // 輸出高品質 JPEG
+                    // 輸出高品質 JPEG (略微降低壓縮比以確保細節)
                     resolve(finalCanvas.toDataURL('image/jpeg', 0.95));
-
-
                 };
                 img.src = base64Data;
             });
@@ -960,7 +988,7 @@
             // 加入高清圖連結
             if (enhancedUrl) {
                 lines.push('');
-                lines.push(`📸 高清版：${enhancedUrl}`);
+                lines.push(`📸 ：${enhancedUrl}`);
             }
 
             const text = lines.join('\n');
@@ -986,7 +1014,7 @@
                     });
                 } else {
                     await navigator.clipboard.writeText(text);
-                    alert('已複製到剪貼簿！\n請手動貼上文字，再分享圖片。');
+                    alert('已複製到剪貼簿！\\n請手動貼上文字，再分享圖片。');
                 }
             } catch (err) {
                 if (err.name !== 'AbortError') {
