@@ -572,12 +572,13 @@
             reader.readAsDataURL(file);
         }
 
-        // ========== 去陰影引擎核心 (Shadow Killer) ==========
+        // ========== Sauvola 自適應閾值引擎 (Pure JS) ==========
 
         /**
-         * 去陰影處理 (Illumination Normalization)
-         * 利用模糊+除法混合模式消除光照不均
-         * 原理：透過將原圖除以模糊背景，拉平亮度差異
+         * Sauvola 自適應閾值演算法
+         * 公式: T(x,y) = mean * (1 + k * (stddev / R - 1))
+         * 比簡單的局部平均更能保留淺色文字
+         * 使用積分圖加速計算
          */
         function processToDocumentMode(base64Data) {
             return new Promise((resolve) => {
@@ -586,84 +587,94 @@
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
 
-                    // 限制最大寬度以提升效能
-                    const maxWidth = 1600;
+                    // 限制寬度以加速處理
+                    const maxWidth = 1200;
                     const scale = img.width > maxWidth ? maxWidth / img.width : 1;
-                    canvas.width = img.width * scale;
-                    canvas.height = img.height * scale;
+                    const width = Math.floor(img.width * scale);
+                    const height = Math.floor(img.height * scale);
+                    canvas.width = width;
+                    canvas.height = height;
 
-                    // --- STEP A: 灰階化 (Grayscale) ---
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    let data = imageData.data;
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const imageData = ctx.getImageData(0, 0, width, height);
+                    const data = imageData.data;
 
-                    for (let i = 0; i < data.length; i += 4) {
-                        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                        data[i] = gray;
-                        data[i + 1] = gray;
-                        data[i + 2] = gray;
+                    // --- STEP 1: 轉灰階 ---
+                    const gray = new Float32Array(width * height);
+                    for (let i = 0; i < gray.length; i++) {
+                        const idx = i * 4;
+                        gray[i] = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
                     }
+
+                    // --- STEP 2: 建立積分圖和積分平方圖 ---
+                    const w1 = width + 1;
+                    const h1 = height + 1;
+                    const integral = new Float64Array(w1 * h1);
+                    const integralSq = new Float64Array(w1 * h1);
+
+                    for (let y = 0; y < height; y++) {
+                        let rowSum = 0, rowSumSq = 0;
+                        for (let x = 0; x < width; x++) {
+                            const val = gray[y * width + x];
+                            rowSum += val;
+                            rowSumSq += val * val;
+                            const idx = (y + 1) * w1 + (x + 1);
+                            integral[idx] = integral[y * w1 + (x + 1)] + rowSum;
+                            integralSq[idx] = integralSq[y * w1 + (x + 1)] + rowSumSq;
+                        }
+                    }
+
+                    // --- STEP 3: Sauvola 自適應閾值 ---
+                    const blockSize = 31;   // 區塊大小 (奇數)
+                    const k = 0.2;          // Sauvola 參數 (0.2-0.5)
+                    const R = 128;          // 動態範圍 (灰階通常是 128)
+                    const halfBlock = Math.floor(blockSize / 2);
+                    const output = new Uint8Array(width * height);
+
+                    for (let y = 0; y < height; y++) {
+                        for (let x = 0; x < width; x++) {
+                            // 局部區域邊界
+                            const x1 = Math.max(0, x - halfBlock);
+                            const y1 = Math.max(0, y - halfBlock);
+                            const x2 = Math.min(width - 1, x + halfBlock);
+                            const y2 = Math.min(height - 1, y + halfBlock);
+                            const area = (x2 - x1 + 1) * (y2 - y1 + 1);
+
+                            // 積分圖查詢 (O(1) 計算區域總和)
+                            const sum = integral[(y2 + 1) * w1 + (x2 + 1)]
+                                - integral[y1 * w1 + (x2 + 1)]
+                                - integral[(y2 + 1) * w1 + x1]
+                                + integral[y1 * w1 + x1];
+
+                            const sumSq = integralSq[(y2 + 1) * w1 + (x2 + 1)]
+                                - integralSq[y1 * w1 + (x2 + 1)]
+                                - integralSq[(y2 + 1) * w1 + x1]
+                                + integralSq[y1 * w1 + x1];
+
+                            // 局部平均和標準差
+                            const mean = sum / area;
+                            const variance = (sumSq / area) - (mean * mean);
+                            const stddev = Math.sqrt(Math.max(0, variance));
+
+                            // Sauvola 閾值公式
+                            const threshold = mean * (1 + k * (stddev / R - 1));
+
+                            // 二值化
+                            const pixel = gray[y * width + x];
+                            output[y * width + x] = (pixel < threshold) ? 0 : 255;
+                        }
+                    }
+
+                    // --- STEP 4: 寫回 ---
+                    for (let i = 0; i < output.length; i++) {
+                        const idx = i * 4;
+                        data[idx] = output[i];
+                        data[idx + 1] = output[i];
+                        data[idx + 2] = output[i];
+                    }
+
                     ctx.putImageData(imageData, 0, 0);
-
-                    // 儲存灰階原圖
-                    const grayscaleData = canvas.toDataURL();
-                    const grayscaleImg = new Image();
-                    grayscaleImg.src = grayscaleData;
-
-                    grayscaleImg.onload = () => {
-                        // --- STEP B: 製作模糊背景 (Blur Background) ---
-                        const blurCanvas = document.createElement('canvas');
-                        blurCanvas.width = canvas.width;
-                        blurCanvas.height = canvas.height;
-                        const blurCtx = blurCanvas.getContext('2d');
-
-                        // 強力模糊取得光影背景
-                        blurCtx.filter = 'blur(25px)';
-                        blurCtx.drawImage(grayscaleImg, 0, 0);
-
-                        // --- STEP C: 去除陰影 (Illumination Normalization) ---
-                        // 原理：Pixel = Original / Blurred
-                        // 陰影區：50/50=1(白); 亮區：200/200=1(白) -> 背景統一變白！
-                        ctx.globalCompositeOperation = 'source-over';
-                        ctx.drawImage(grayscaleImg, 0, 0);
-
-                        // 使用 luminosity 模式來反轉模糊層亮度
-                        ctx.globalCompositeOperation = 'luminosity';
-                        ctx.filter = 'invert(1)';
-                        ctx.drawImage(blurCanvas, 0, 0);
-                        ctx.filter = 'none';
-
-                        // 加亮效果
-                        ctx.globalCompositeOperation = 'overlay';
-                        ctx.fillStyle = 'rgba(255,255,255,0.3)';
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                        ctx.globalCompositeOperation = 'source-over';
-
-                        // --- STEP D: 最終增強對比並二值化 ---
-                        imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                        data = imageData.data;
-
-                        // 自適應閾值：計算平均亮度
-                        let sum = 0;
-                        for (let i = 0; i < data.length; i += 4) {
-                            sum += data[i];
-                        }
-                        const avg = sum / (data.length / 4);
-                        const threshold = Math.min(Math.max(avg * 0.85, 100), 200);
-
-                        for (let i = 0; i < data.length; i += 4) {
-                            const final = data[i] < threshold ? 0 : 255;
-                            data[i] = final;
-                            data[i + 1] = final;
-                            data[i + 2] = final;
-                        }
-
-                        ctx.putImageData(imageData, 0, 0);
-
-                        // 輸出為 JPEG
-                        resolve(canvas.toDataURL('image/jpeg', 0.9));
-                    };
+                    resolve(canvas.toDataURL('image/jpeg', 0.9));
                 };
                 img.src = base64Data;
             });
