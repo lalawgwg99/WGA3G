@@ -824,9 +824,9 @@
         function renderResultsList() {
             let html = '';
 
-            // 基本資訊 - 按照範例順序：店點、日期、單號、電話、地址、備註
+            // 基本資訊 - 按照用戶要求順序：店別、日期、姓名、電話、地址、訂單、發票
             html += `<div class="list-item">
-                <span class="list-label">店點</span>
+                <span class="list-label">店別</span>
                 <input type="text" class="editable-input" id="edit-store" value="${orderData.store || ''}">
             </div>`;
 
@@ -836,8 +836,8 @@
             </div>`;
 
             html += `<div class="list-item">
-                <span class="list-label">單號</span>
-                <input type="text" class="editable-input highlight" id="edit-bookingNo" value="${orderData.bookingNo || ''}">
+                <span class="list-label">姓名</span>
+                <input type="text" class="editable-input" id="edit-customerName" value="${orderData.customerName || ''}">
             </div>`;
 
             html += `<div class="list-item">
@@ -850,6 +850,16 @@
                 <input type="text" class="editable-input" id="edit-address" value="${orderData.address || ''}">
             </div>`;
 
+            html += `<div class="list-item">
+                <span class="list-label">訂單</span>
+                <input type="text" class="editable-input highlight" id="edit-bookingNo" value="${orderData.bookingNo || ''}">
+            </div>`;
+
+            html += `<div class="list-item">
+                <span class="list-label">發票</span>
+                <input type="text" class="editable-input" id="edit-invoiceNo" value="${orderData.invoiceNo || ''}">
+            </div>`;
+
             // 商品列表 - 可編輯 + 可刪除
             if (orderData.items && orderData.items.length > 0) {
                 orderData.items.forEach((item, index) => {
@@ -860,7 +870,7 @@
                             <button class="delete-btn" onclick="deleteItem(${index})">\\u274c 刪除</button>
                         </div>
                         <div class="list-item" style="border: none; padding: 4px 0;">
-                            <span class="list-label">代碼</span>
+                            <span class="list-label">itemcode</span>
                             <input type="text" class="editable-input highlight" id="edit-code-${index}" value="${code}">
                         </div>
                         <div class="list-item" style="border: none; padding: 4px 0;">
@@ -900,9 +910,11 @@
             // 從輸入框更新 orderData
             orderData.store = document.getElementById('edit-store').value;
             orderData.datetime = document.getElementById('edit-datetime').value;
-            orderData.bookingNo = document.getElementById('edit-bookingNo').value;
+            orderData.customerName = document.getElementById('edit-customerName').value;
             orderData.phone = document.getElementById('edit-phone').value;
             orderData.address = document.getElementById('edit-address').value;
+            orderData.bookingNo = document.getElementById('edit-bookingNo').value;
+            orderData.invoiceNo = document.getElementById('edit-invoiceNo').value;
             orderData.remarks = document.getElementById('edit-remarks').value;
 
             // 更新商品資料
@@ -925,22 +937,28 @@
         async function shareResult() {
             if (!orderData) return;
 
-            // 格式跟 Line 群組範例一致
+            // 分享格式順序：店別、日期、姓名、電話、地址、訂單、發票、itemcode、商品名稱+數量、備註
             const lines = [
-                `店點：${orderData.store || ''}`,
+                `店別：${orderData.store || ''}`,
                 `日期：${formatDatetime(orderData.datetime)}`,
-                `${orderData.bookingNo || ''}`
+                `姓名：${orderData.customerName || ''}`,
+                `電話：${orderData.phone || ''}`,
+                `地址：${orderData.address || ''}`,
+                `訂單：${orderData.bookingNo || ''}`,
+                `發票：${orderData.invoiceNo || ''}`
             ];
 
-            // 電話、地址
-            if (orderData.phone) {
-                lines.push(`電話：${orderData.phone}`);
-            }
-            if (orderData.address) {
-                lines.push(`地址：${orderData.address}`);
+            // 商品資訊
+            if (orderData.items && orderData.items.length > 0) {
+                orderData.items.forEach((item) => {
+                    lines.push(`itemcode：${item.itemCode || ''}`);
+                    const qty = item.quantity || 1;
+                    const qtyText = qty > 1 ? ` *${qty}` : '';
+                    lines.push(`商品名稱：${item.itemName || ''}${qtyText}`);
+                });
             }
 
-            // 備註 - 留白讓銷售自己填
+            // 備註
             lines.push(`備註：${orderData.remarks || ''}`);
 
             const text = lines.join('\n');
